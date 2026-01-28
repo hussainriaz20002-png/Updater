@@ -1,25 +1,31 @@
-import Ionicons from "@react-native-vector-icons/ionicons";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import WebView from "react-native-webview";
+import { WebView } from "react-native-webview";
 
-const DeepDive = ({ route, navigation }: any) => {
-  const { url } = route.params;
+const DeepDive = () => {
+  const router = useRouter();
+  const { url } = useLocalSearchParams<{ url: string }>();
 
   return (
     <View style={{ flex: 1 }}>
       {/* Floating header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.iconButton}
+        >
           <Ionicons name="arrow-back-outline" size={28} color="white" />
         </TouchableOpacity>
       </View>
 
-      {/* Full Article in WebView */}
       {url ? (
         <WebView source={{ uri: url }} style={{ flex: 1 }} />
       ) : (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <Ionicons name="alert-circle-outline" size={40} color="gray" />
         </View>
       )}

@@ -1,130 +1,67 @@
-import { CameraRoll } from "@react-native-camera-roll/camera-roll";
-import { useNavigation } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  FlatList,
-  Image,
-  PermissionsAndroid,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import { useTheme } from "../../context/ThemeContext";
 
 const UploadScreen = () => {
-  const navigation = useNavigation<any>();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
-  const [media, setMedia] = useState<any[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const pickVideo = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["videos"],
+      allowsEditing: true,
+      quality: 1,
+    });
 
-  useEffect(() => {
-    requestPermission();
-  }, []);
-
-  const requestPermission = async () => {
-    if (Platform.OS === "android") {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO,
-        {
-          title: "Gallery Permission",
-          message: "App needs access to your gallery",
-          buttonPositive: "OK",
-        }
-      );
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        loadMedia();
-      }
-    } else {
-      loadMedia();
-    }
-  };
-
-  const loadMedia = async () => {
-    try {
-      const result = await CameraRoll.getPhotos({
-        first: 50,
-        assetType: "Videos",
+    if (!result.canceled) {
+      const selectedUri = result.assets[0].uri;
+      router.push({
+        pathname: "/UploadReels",
+        params: { selected: JSON.stringify({ uri: selectedUri }) },
       });
-      setMedia(result.edges);
-    } catch (err) {
-      console.log(err);
     }
-  };
-
-  const toggleSelect = (uri: string) => {
-    setSelected((prev) => (prev === uri ? null : uri));
-  };
-
-  const renderItem = ({ item }: { item: any }) => {
-    const node = item.node.image;
-    const type = item.node.type;
-    const isSelected = selected === node.uri;
-
-    return (
-      <TouchableOpacity
-        onPress={() => toggleSelect(node.uri)}
-        style={styles.mediaBox}
-      >
-        <Image source={{ uri: node.uri }} style={styles.media} />
-
-        {type?.startsWith("video") && (
-          <View style={styles.playIconContainer}>
-            <Text style={styles.playIcon}>▶</Text>
-          </View>
-        )}
-
-        {isSelected && (
-          <View
-            style={[
-              styles.tickCircle,
-              { backgroundColor: colors.primary },
-            ]}
-          >
-            <Text style={styles.tickText}>✔</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const handleNext = () => {
-    if (!selected) {
-      Alert.alert("Selection Required", "Please select a reel before proceeding.");
-      return;
-    }
-    navigation.navigate("UploadReels", { selected: { uri: selected } });
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: colors.card },
-        ]}
-      >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>New Reel</Text>
-        <TouchableOpacity
-          style={[styles.nextButton, { backgroundColor: colors.primary }]}
-          onPress={handleNext}
-        >
-          <Text style={[styles.nextText, { color: colors.background }]}>Next</Text>
-        </TouchableOpacity>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Upload Reel</Text>
       </View>
 
-      {/* Gallery */}
-      <FlatList
-        data={media}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        numColumns={3}
-        contentContainerStyle={styles.galleryGrid}
-      />
+      <View style={styles.content}>
+        <View style={[
+          styles.uploadCard,
+          {
+            backgroundColor: colors.card,
+            shadowColor: isDark ? "#000" : "#ccc",
+          }
+        ]}>
+          <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F0F5FF' }]}>
+            <Ionicons name="cloud-upload-outline" size={moderateScale(60)} color={colors.primary} />
+          </View>
+
+          <Text style={[styles.title, { color: colors.text }]}>
+            Upload a New Reel
+          </Text>
+          <Text style={[styles.subtitle, { color: isDark ? "#aaa" : "#666" }]}>
+            Choose a video from your gallery to share with your audience
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.uploadButton, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+            onPress={pickVideo}
+          >
+            <Ionicons name="images-outline" size={moderateScale(20)} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>
+              Pick from Gallery
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 };
@@ -132,43 +69,70 @@ const UploadScreen = () => {
 export default UploadScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingTop: verticalScale(50),
+    paddingBottom: verticalScale(20),
+    paddingHorizontal: scale(20),
+    alignItems: 'center',
   },
-  headerTitle: { fontSize: 18, fontWeight: "600" },
-  nextButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 8,
+  headerTitle: {
+    fontSize: moderateScale(20),
+    fontWeight: "700",
   },
-  nextText: { fontWeight: "600" },
-  galleryGrid: { paddingVertical: 8 },
-  mediaBox: { flex: 1, margin: 1, position: "relative" },
-  media: { width: 120, height: 120 },
-  playIconContainer: {
-    position: "absolute",
-    bottom: 5,
-    right: 5,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  playIcon: { color: "#fff", fontSize: 12, fontWeight: "bold" },
-  tickCircle: {
-    position: "absolute",
-    top: 5,
-    right: 5,
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+  content: {
+    flex: 1,
     justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: scale(20),
+    paddingBottom: verticalScale(80),
   },
-  tickText: { color: "white", fontWeight: "bold", fontSize: 14 },
+  uploadCard: {
+    borderRadius: moderateScale(24),
+    padding: moderateScale(30),
+    alignItems: 'center',
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  iconContainer: {
+    width: moderateScale(120),
+    height: moderateScale(120),
+    borderRadius: moderateScale(60),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: verticalScale(24),
+  },
+  title: {
+    fontSize: moderateScale(22),
+    fontWeight: "800",
+    marginBottom: verticalScale(10),
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: moderateScale(15),
+    lineHeight: moderateScale(22),
+    textAlign: "center",
+    marginBottom: verticalScale(30),
+    paddingHorizontal: scale(10),
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: scale(30),
+    paddingVertical: verticalScale(16),
+    borderRadius: moderateScale(30),
+    elevation: 4,
+    shadowColor: "#3A7BD5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  buttonText: {
+    fontSize: moderateScale(16),
+    fontWeight: "700",
+    color: "#fff",
+  },
 });

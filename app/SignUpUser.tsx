@@ -1,18 +1,22 @@
-import Ionicons from "@react-native-vector-icons/ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import { useTheme } from "../context/ThemeContext";
 
 const SignUpUser = () => {
-  const navigation = useNavigation<any>();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,73 +26,85 @@ const SignUpUser = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => navigation.goBack()}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        style={[styles.container, { backgroundColor: colors.background }]}
       >
-        <Ionicons name="arrow-back" size={28} color={colors.primary} />
-      </TouchableOpacity>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
-      {/* Card */}
-      <View style={[styles.card, { backgroundColor: colors.card }]}>
-        {/* Heading */}
-        <View style={styles.heading}>
-          <Text style={[styles.headingBlack, { color: colors.text }]}>
-            SignUp As
-          </Text>
-          <Text style={[styles.headingBlue, { color: colors.primary }]}>
-            User
-          </Text>
+        {/* Back Button */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'white' }]}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={moderateScale(24)} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Email */}
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.background,
-              borderColor: "#888",
-              color: "#888",
-            },
-          ]}
-          placeholder="Email"
-          placeholderTextColor="#888"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
+        <View style={styles.mainContent}>
+          <View style={styles.textContainer}>
+            <Text style={[styles.welcomeText, { color: colors.text }]}>Join as User</Text>
+            <Text style={[styles.subText, { color: isDark ? "#aaa" : "#666" }]}>
+              Create an account to read and follow
+            </Text>
+          </View>
 
-        {/* Password */}
-        <TextInput
-          style={[
-            styles.input,
+          {/* Card */}
+          <View style={[
+            styles.card,
             {
-              backgroundColor: colors.background,
-              borderColor: "#888",
-              color: "#888",
-            },
-          ]}
-          placeholder="Password"
-          placeholderTextColor="#888"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+              backgroundColor: colors.card,
+              shadowColor: isDark ? "#000" : "#ccc",
+            }
+          ]}>
 
-        {/* Sign Up Button */}
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: colors.primary }]}
-          onPress={handleSignUp}
-        >
-          <Text style={[styles.buttonText, { color: "#fff" }]}>
-            Sign Up
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            {/* Email Input */}
+            <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
+            <View style={[styles.inputContainer, { borderColor: isDark ? "#444" : "#e0e0e0", backgroundColor: isDark ? "#1a1a1a" : "#f9f9f9" }]}>
+              <Ionicons name="mail-outline" size={moderateScale(20)} color={colors.primary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="user@example.com"
+                placeholderTextColor={isDark ? "#666" : "#aaa"}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Password Input */}
+            <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+            <View style={[styles.inputContainer, { borderColor: isDark ? "#444" : "#e0e0e0", backgroundColor: isDark ? "#1a1a1a" : "#f9f9f9" }]}>
+              <Ionicons name="lock-closed-outline" size={moderateScale(20)} color={colors.primary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: colors.text }]}
+                placeholder="********"
+                placeholderTextColor={isDark ? "#666" : "#aaa"}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
+
+            {/* Sign Up Button */}
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
+              onPress={() => router.push("/(tabs)/Home")}
+            >
+              <Text style={styles.buttonText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -97,56 +113,89 @@ export default SignUpUser;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 40,
-    justifyContent: "center",
-    alignItems: "center",
+  },
+  header: {
+    paddingHorizontal: scale(20),
+    paddingTop: verticalScale(50),
+    marginBottom: verticalScale(20),
   },
   backBtn: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    padding: 5,
-    zIndex: 1,
-  },
-  card: {
-    width: "100%",
-    borderRadius: 16,
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-    elevation: 5,
+    width: moderateScale(40),
+    height: moderateScale(40),
+    borderRadius: moderateScale(12),
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  heading: {
-    marginBottom: 25,
-    alignItems: "center",
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: scale(24),
+    paddingBottom: verticalScale(40),
   },
-  headingBlack: {
-    fontWeight: "bold",
-    fontSize: 22,
+  textContainer: {
+    marginBottom: verticalScale(30),
   },
-  headingBlue: {
-    fontWeight: "bold",
-    fontSize: 24,
-    marginTop: 4,
+  welcomeText: {
+    fontSize: moderateScale(28),
+    fontWeight: "800",
+    marginBottom: verticalScale(8),
+    letterSpacing: 0.5,
+  },
+  subText: {
+    fontSize: moderateScale(16),
+    lineHeight: moderateScale(22),
+  },
+  card: {
+    borderRadius: moderateScale(24),
+    padding: moderateScale(24),
+    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    marginBottom: verticalScale(30),
+  },
+  label: {
+    fontSize: moderateScale(14),
+    fontWeight: "600",
+    marginBottom: verticalScale(8),
+    marginLeft: scale(4),
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: moderateScale(16),
+    marginBottom: verticalScale(20),
+    height: verticalScale(52),
+    paddingHorizontal: scale(15),
+  },
+  inputIcon: {
+    marginRight: scale(10),
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
-    fontSize: 16,
+    flex: 1,
+    fontSize: moderateScale(16),
+    height: '100%',
   },
   button: {
-    paddingVertical: 15,
-    borderRadius: 8,
+    borderRadius: moderateScale(16),
+    paddingVertical: verticalScale(16),
     alignItems: "center",
-    marginTop: 10,
+    marginTop: verticalScale(10),
+    shadowColor: "#3A7BD5",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: "600",
+    color: "#fff",
+    fontSize: moderateScale(18),
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
 });

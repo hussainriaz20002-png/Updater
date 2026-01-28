@@ -1,5 +1,5 @@
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Ionicons from "@react-native-vector-icons/ionicons";
 import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {

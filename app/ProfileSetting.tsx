@@ -1,22 +1,26 @@
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
-import Ionicons from "@react-native-vector-icons/ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   BackHandler,
+  ScrollView,
+  StatusBar,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import { useTheme } from "../context/ThemeContext";
 
 const ProfileSettingsScreen = () => {
-  const navigation = useNavigation<any>();
+  const router = useRouter(); // Use expo-router
   const theme = useTheme();
+  const { isDark, colors } = theme;
 
   const [notifications, setNotifications] = useState(true);
   const [breakingAlert, setBreakingAlert] = useState(true);
@@ -132,177 +136,242 @@ const ProfileSettingsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          hitSlop={10}
+        >
+          <Ionicons name="arrow-back" size={moderateScale(24)} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Profile Settings
+          Settings
         </Text>
       </View>
 
-      {/* Preferences */}
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Preferences
-      </Text>
-      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-        {/* Dark Mode */}
-        <View style={styles.optionRow}>
-          <View style={styles.optionLeft}>
-            <Ionicons name="moon" size={20} color={theme.colors.primary} style={styles.icon} />
-            <Text style={[styles.optionText, { color: theme.colors.text }]}>Dark Mode</Text>
-          </View>
-          <Switch
-            value={theme.isDark}
-            onValueChange={theme.toggleTheme}
-            trackColor={{ false: "#ccc", true: theme.colors.primary }}
-            thumbColor={"#fff"}
-          />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: verticalScale(40) }}>
+
+        {/* Account */}
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Account
+        </Text>
+        <View style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.card,
+            shadowColor: isDark ? "#000" : "#ccc"
+          }
+        ]}>
+          <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.primary }]} activeOpacity={0.8}>
+            <Ionicons name="log-out-outline" size={moderateScale(20)} color="#fff" style={styles.btnIcon} />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Notifications */}
-        <View style={styles.optionRow}>
-          <View style={styles.optionLeft}>
-            <Ionicons name="notifications" size={20} color={theme.colors.primary} style={styles.icon} />
-            <Text style={[styles.optionText, { color: theme.colors.text }]}>
-              Notifications
-            </Text>
-          </View>
-          <Switch
-            value={notifications}
-            onValueChange={setNotifications}
-            trackColor={{ false: "#ccc", true: theme.colors.primary }}
-            thumbColor={"#fff"}
-          />
-        </View>
 
-        {/* Breaking News Alert */}
-        <View style={styles.optionRow}>
-          <View style={styles.optionLeft}>
-            <Ionicons name="alert-circle" size={20} color={theme.colors.primary} style={styles.icon} />
-            <Text style={[styles.optionText, { color: theme.colors.text }]}>
-              Breaking News Alert
-            </Text>
-          </View>
-          <Switch
-            value={breakingAlert}
-            onValueChange={setBreakingAlert}
-            trackColor={{ false: "#ccc", true: theme.colors.primary }}
-            thumbColor={"#fff"}
-          />
-        </View>
-      </View>
+        {/* App Settings */}
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          App Preferences
+        </Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, shadowColor: isDark ? "#000" : "#ccc" }]}>
 
-      {/* Daily Time Limit */}
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Daily Time Limit
-      </Text>
-      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-        <View style={styles.optionRow}>
-          <View style={styles.optionLeft}>
-            <Ionicons name="time" size={20} color={theme.colors.primary} style={styles.icon} />
-            <Text style={[styles.optionText, { color: theme.colors.text }]}>
-              Set Daily Limit
-            </Text>
-          </View>
-          <Switch
-            value={dailyLimitEnabled}
-            onValueChange={handleToggle}
-            trackColor={{ false: "#ccc", true: theme.colors.primary }}
-            thumbColor={"#fff"}
-          />
-        </View>
-
-        {dailyLimitEnabled && (
-          <>
-            <Slider
-              style={{ width: "100%", height: 40 }}
-              minimumValue={5}
-              maximumValue={120}
-              step={5}
-              value={dailyLimit}
-              minimumTrackTintColor={theme.colors.primary}
-              maximumTrackTintColor="#ddd"
-              thumbTintColor={theme.colors.primary}
-              onValueChange={handleLimitChange}
+          {/* Dark Mode */}
+          <View style={[styles.optionRow, styles.separator, { borderBottomColor: isDark ? '#333' : '#f0f0f0' }]}>
+            <View style={styles.optionLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]}>
+                <Ionicons name="moon" size={moderateScale(18)} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: theme.colors.text }]}>Dark Mode</Text>
+            </View>
+            <Switch
+              value={theme.isDark}
+              onValueChange={theme.toggleTheme}
+              trackColor={{ false: "#e0e0e0", true: theme.colors.primary }}
+              thumbColor={"#fff"}
             />
-            <Text style={[styles.timeLabel, { color: theme.colors.subText }]}>
-              {dailyLimit} min
-            </Text>
-          </>
-        )}
-      </View>
-
-      {/* Saved */}
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Saved
-      </Text>
-      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-        <TouchableOpacity
-          style={styles.optionRow}
-          onPress={() => navigation.navigate("SavedArticles")}
-        >
-          <View style={styles.optionLeft}>
-            <Ionicons name="bookmark" size={20} color={theme.colors.primary} style={styles.icon} />
-            <Text style={[styles.optionText, { color: theme.colors.text }]}>
-              View Saved Articles
-            </Text>
           </View>
-        </TouchableOpacity>
-      </View>
 
-      {/* Account */}
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        Account
-      </Text>
-      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-        <Text style={[styles.subHeading, { color: theme.colors.text }]}>
-          Account Status
+          {/* Notifications */}
+          <View style={[styles.optionRow, styles.separator, { borderBottomColor: isDark ? '#333' : '#f0f0f0' }]}>
+            <View style={styles.optionLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]}>
+                <Ionicons name="notifications" size={moderateScale(18)} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: theme.colors.text }]}>
+                Notifications
+              </Text>
+            </View>
+            <Switch
+              value={notifications}
+              onValueChange={setNotifications}
+              trackColor={{ false: "#e0e0e0", true: theme.colors.primary }}
+              thumbColor={"#fff"}
+            />
+          </View>
+
+          {/* Breaking News Alert */}
+          <View style={styles.optionRow}>
+            <View style={styles.optionLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]}>
+                <Ionicons name="alert-circle" size={moderateScale(18)} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: theme.colors.text }]}>
+                Breaking News
+              </Text>
+            </View>
+            <Switch
+              value={breakingAlert}
+              onValueChange={setBreakingAlert}
+              trackColor={{ false: "#e0e0e0", true: theme.colors.primary }}
+              thumbColor={"#fff"}
+            />
+          </View>
+        </View>
+
+        {/* Digital Wellbeing */}
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Digital Wellbeing
         </Text>
-        <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.colors.primary }]}>
-          <Ionicons name="log-out" size={18} color="#fff" style={styles.icon} />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, shadowColor: isDark ? "#000" : "#ccc" }]}>
+          <View style={styles.optionRow}>
+            <View style={styles.optionLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]}>
+                <Ionicons name="timer" size={moderateScale(18)} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: theme.colors.text }]}>
+                Daily Time Limit
+              </Text>
+            </View>
+            <Switch
+              value={dailyLimitEnabled}
+              onValueChange={handleToggle}
+              trackColor={{ false: "#e0e0e0", true: theme.colors.primary }}
+              thumbColor={"#fff"}
+            />
+          </View>
+
+          {dailyLimitEnabled && (
+            <View style={styles.sliderContainer}>
+              <View style={styles.sliderLabels}>
+                <Text style={[styles.sliderLabel, { color: theme.colors.subText }]}>5 min</Text>
+                <Text style={[styles.currentLimit, { color: theme.colors.primary }]}>{dailyLimit} min</Text>
+                <Text style={[styles.sliderLabel, { color: theme.colors.subText }]}>120 min</Text>
+              </View>
+              <Slider
+                style={{ width: "100%", height: verticalScale(40) }}
+                minimumValue={5}
+                maximumValue={120}
+                step={5}
+                value={dailyLimit}
+                minimumTrackTintColor={theme.colors.primary}
+                maximumTrackTintColor={isDark ? "#444" : "#ddd"}
+                thumbTintColor={theme.colors.primary}
+                onValueChange={handleLimitChange}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Content */}
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Content
+        </Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, shadowColor: isDark ? "#000" : "#ccc" }]}>
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => router.push("/SavedArticles")}
+          >
+            <View style={styles.optionLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]}>
+                <Ionicons name="bookmark" size={moderateScale(18)} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: theme.colors.text }]}>
+                Saved Articles
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={moderateScale(20)} color={isDark ? "#666" : "#aaa"} />
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-  headerTitle: { fontSize: 18, fontWeight: "bold", marginLeft: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 8, marginTop: 16 },
+  container: { flex: 1, paddingHorizontal: scale(16) },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: verticalScale(40),
+    paddingBottom: verticalScale(15),
+    marginBottom: verticalScale(10)
+  },
+  backButton: { padding: 5, marginRight: scale(10) },
+  headerTitle: { fontSize: moderateScale(20), fontWeight: "700" },
+  sectionTitle: {
+    fontSize: moderateScale(14),
+    fontWeight: "600",
+    marginBottom: verticalScale(8),
+    marginTop: verticalScale(16),
+    marginLeft: scale(4),
+    opacity: 0.8
+  },
   card: {
-    borderRadius: 10,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
+    borderRadius: moderateScale(16),
+    paddingHorizontal: scale(16),
+    paddingVertical: verticalScale(8),
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   optionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: verticalScale(12),
+  },
+  separator: {
+    borderBottomWidth: 1,
   },
   optionLeft: { flexDirection: "row", alignItems: "center" },
-  optionText: { fontSize: 15 },
-  icon: { marginRight: 10 },
-  timeLabel: { textAlign: "center", marginTop: 10, fontSize: 14, fontWeight: "600" },
-  subHeading: { fontSize: 14, fontWeight: "bold", marginBottom: 12 },
+  iconContainer: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(12)
+  },
+  optionText: { fontSize: moderateScale(16), fontWeight: '500' },
+  sliderContainer: {
+    marginTop: verticalScale(5),
+    paddingTop: verticalScale(10),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)'
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(-5)
+  },
+  sliderLabel: { fontSize: moderateScale(12) },
+  currentLimit: { fontSize: moderateScale(14), fontWeight: 'bold' },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
+    paddingVertical: verticalScale(12),
+    borderRadius: moderateScale(12),
+    marginVertical: verticalScale(8),
   },
-  logoutText: { fontSize: 15, fontWeight: "bold", color: "#fff" },
+  btnIcon: { marginRight: scale(8) },
+  logoutText: { fontSize: moderateScale(16), fontWeight: "bold", color: "#fff" },
 });
 
 export default ProfileSettingsScreen;

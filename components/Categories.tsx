@@ -1,11 +1,12 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import { useTheme } from "../context/ThemeContext";
 
 const categories = ["For You", "Technology", "Business", "Entertainment", "Sports", "Health"];
 
 const Categories = ({ activeCategory, setActiveCategory }: { activeCategory: string, setActiveCategory: (cat: string) => void }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <View style={styles.container}>
@@ -19,9 +20,19 @@ const Categories = ({ activeCategory, setActiveCategory }: { activeCategory: str
           return (
             <TouchableOpacity
               key={category}
+              activeOpacity={0.7}
               style={[
                 styles.categoryButton,
-                { backgroundColor: isActive ? colors.primary + "20" : colors.card }
+                {
+                  backgroundColor: isActive ? colors.primary : (isDark ? '#333' : '#f0f0f0'),
+                  borderWidth: 1,
+                  borderColor: isActive ? colors.primary : (isDark ? '#444' : '#e0e0e0'),
+                  elevation: isActive ? 4 : 0,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isActive ? 0.3 : 0,
+                  shadowRadius: 4,
+                }
               ]}
               onPress={() => setActiveCategory(category)}
             >
@@ -29,8 +40,8 @@ const Categories = ({ activeCategory, setActiveCategory }: { activeCategory: str
                 style={[
                   styles.categoryText,
                   {
-                    color: isActive ? colors.primary : colors.text,
-                    fontWeight: isActive ? "600" : "400"
+                    color: isActive ? '#fff' : colors.text,
+                    fontWeight: isActive ? "700" : "500"
                   }
                 ]}
               >
@@ -46,21 +57,20 @@ const Categories = ({ activeCategory, setActiveCategory }: { activeCategory: str
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
-    marginBottom: 10,
+    paddingVertical: verticalScale(16),
   },
   scrollContainer: {
-    paddingHorizontal: 15,
+    paddingHorizontal: scale(20),
     alignItems: "center",
   },
   categoryButton: {
-    marginRight: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 15,
-    borderRadius: 20,
+    marginRight: scale(10),
+    paddingVertical: verticalScale(8),
+    paddingHorizontal: scale(16),
+    borderRadius: moderateScale(20),
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: moderateScale(13),
   },
 });
 

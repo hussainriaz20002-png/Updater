@@ -1,6 +1,5 @@
-import Ionicons from '@react-native-vector-icons/ionicons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import {
@@ -16,12 +15,9 @@ import {
   View
 } from 'react-native';
 import Modal from "react-native-modal";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import { useSavedArticles } from "../context/SavedArticlesContext";
 import { useTheme } from "../context/ThemeContext";
-import type { RootStackParamList } from '../types';
-
-
-type DeepDiveNavProp = NativeStackNavigationProp<RootStackParamList, 'DeepDive'>;
 
 const Articles = (props: {
   urlToImage: string;
@@ -33,8 +29,9 @@ const Articles = (props: {
   content?: string;
   url: string;
 }) => {
-  const navigation = useNavigation<DeepDiveNavProp>();
-  const theme = useTheme(); // 🔑 access theme
+  const router = useRouter();
+  const theme = useTheme();
+  const { colors, isDark } = theme;
 
   // Like states
   const [liked, setLiked] = useState(false);
@@ -129,74 +126,91 @@ const Articles = (props: {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() =>
-        navigation.navigate("DeepDive", {
-          urlToImage: props.urlToImage,
-          title: props.title,
-          description: props.description,
-          content: props.content,
-          url: props.url,
+        router.push({
+          pathname: "/DeepDive",
+          params: {
+            urlToImage: props.urlToImage,
+            title: props.title,
+            description: props.description,
+            content: props.content,
+            url: props.url,
+          }
         })
       }
     >
-      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+      <View style={[styles.card, {
+        backgroundColor: colors.card,
+        shadowColor: isDark ? "#000" : "#ccc",
+      }]}>
         {/* Image */}
         {props.urlToImage ? (
           <Image source={{ uri: props.urlToImage }} style={styles.image} />
         ) : null}
 
-        {/* title and description */}
+        {/* Content */}
         <View style={styles.content}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>{props.title}</Text>
-          <Text style={{ color: theme.colors.text }}>{props.description}</Text>
-
-          {/* Author + date */}
-          <View style={{ marginTop: 10 }}>
-            <Text style={{ color: theme.colors.text }}>By: {props.author || "Unknown"}</Text>
-            <Text style={{ color: theme.colors.text }}>
+          <View style={styles.metaRow}>
+            <Text style={[styles.sourceTag, { color: colors.primary, backgroundColor: isDark ? 'rgba(58, 123, 213, 0.1)' : '#E3F2FD' }]}>
+              {props.source || "News"}
+            </Text>
+            <Text style={[styles.dateText, { color: isDark ? "#aaa" : "#888" }]}>
               {moment(String(props.publishedAt)).startOf('hour').fromNow()}
             </Text>
           </View>
 
-          {/* Source */}
-          <View style={{ marginTop: 10 }}>
-            <Text style={{ color: theme.colors.text }}>Source: {props.source}</Text>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={3}>{props.title}</Text>
+          <Text style={[styles.description, { color: isDark ? "#bbb" : "#555" }]} numberOfLines={3}>
+            {props.description}
+          </Text>
+
+          <View style={styles.authorRow}>
+            <Ionicons name="person-circle-outline" size={moderateScale(16)} color={colors.text} style={{ opacity: 0.6, marginRight: 4 }} />
+            <Text style={[styles.authorText, { color: colors.text }]}>{props.author || "Unknown"}</Text>
           </View>
 
-          {/* Icons */}
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: isDark ? '#333' : '#eee' }]} />
+
+          {/* Actions */}
           <View style={styles.iconRow}>
             <View style={styles.leftIcons}>
               {/* Like */}
-              <TouchableOpacity style={styles.iconBtn} onPress={toggleLike}>
+              <TouchableOpacity style={styles.iconBtn} onPress={toggleLike} hitSlop={10}>
                 <Ionicons
                   name={liked ? "heart" : "heart-outline"}
-                  size={24}
-                  color={liked ? "#E91E63" : theme.colors.text}
+                  size={moderateScale(22)}
+                  color={liked ? "#E91E63" : colors.text}
                 />
-                <Text style={[styles.likeCount, { color: theme.colors.text }]}>{likeCount}</Text>
+                <Text style={[styles.actionText, { color: colors.text }]}>{likeCount > 0 ? likeCount : ''}</Text>
               </TouchableOpacity>
 
               {/* Comment */}
-              <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)}>
-                <Ionicons name="chatbubble-outline" size={24} color={theme.colors.text} />
-                <Text style={[styles.likeCount, { color: theme.colors.text }]}>{comments.length}</Text>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)} hitSlop={10}>
+                <Ionicons name="chatbubble-outline" size={moderateScale(22)} color={colors.text} />
+                <Text style={[styles.actionText, { color: colors.text }]}>{comments.length > 0 ? comments.length : ''}</Text>
               </TouchableOpacity>
 
               {/* Share */}
-              <TouchableOpacity style={styles.iconBtn} onPress={onShare}>
-                <Ionicons name="paper-plane-outline" size={24} color={theme.colors.text} />
-                <Text style={[styles.likeCount, { color: theme.colors.text }]}>{shareCount}</Text>
+              <TouchableOpacity style={styles.iconBtn} onPress={onShare} hitSlop={10}>
+                <Ionicons name="paper-plane-outline" size={moderateScale(22)} color={colors.text} />
+                <Text style={[styles.actionText, { color: colors.text }]}>{shareCount > 0 ? shareCount : ''}</Text>
               </TouchableOpacity>
+
+              {/* Reading Time (Simulated) */}
+              <View style={[styles.iconBtn, { marginLeft: scale(10) }]}>
+                <Ionicons name="time-outline" size={moderateScale(18)} color={isDark ? "#888" : "#aaa"} />
+                <Text style={[styles.actionText, { color: isDark ? "#888" : "#aaa", fontSize: moderateScale(12) }]}>4 min read</Text>
+              </View>
             </View>
 
             {/* Save */}
-            <TouchableOpacity onPress={toggleSave}>
+            <TouchableOpacity onPress={toggleSave} hitSlop={10}>
               <Ionicons
                 name={isSaved ? "bookmark" : "bookmark-outline"}
-                size={24}
-                color={isSaved ? "#007BFF" : theme.colors.text}
+                size={moderateScale(22)}
+                color={isSaved ? colors.primary : colors.text}
               />
             </TouchableOpacity>
-
           </View>
         </View>
       </View>
@@ -208,54 +222,70 @@ const Articles = (props: {
         onSwipeComplete={() => setModalVisible(false)}
         swipeDirection="down"
         style={styles.modal}
+        avoidKeyboard
       >
-        <View style={[styles.bottomSheet, { backgroundColor: theme.colors.background }]}>
-          <View style={[styles.dragHandle, { backgroundColor: theme.colors.card }]} />
-          <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Comments</Text>
+        <View style={[styles.bottomSheet, { backgroundColor: colors.background }]}>
+          <View style={[styles.dragHandle, { backgroundColor: isDark ? '#444' : '#ddd' }]} />
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Comments</Text>
 
           <FlatList
             data={comments}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.commentItem}>
-                <Text style={[styles.commentText, { color: theme.colors.text }]}>
-                  <Text style={{ fontWeight: "600" }}>user123 </Text>
-                  {item.text}
-                </Text>
-                <View style={styles.commentMeta}>
-                  <Text style={[styles.commentTime, { color: theme.colors.text }]}>
-                    {moment(item.time).fromNow()}
+                <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#333' : '#eee' }]}>
+                  <Text style={{ color: colors.text, fontWeight: 'bold' }}>U</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.commentText, { color: colors.text }]}>
+                    <Text style={{ fontWeight: "700" }}>user123 </Text>
+                    {item.text}
                   </Text>
-                  <TouchableOpacity onPress={() => toggleLikeComment(item.id)}>
-                    <Text style={[styles.commentLike, { color: theme.colors.text }]}>
-                      {item.liked ? "♥" : "♡"} {item.likes}
+                  <View style={styles.commentMeta}>
+                    <Text style={[styles.commentTime, { color: isDark ? '#888' : '#999' }]}>
+                      {moment(item.time).fromNow()}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setReplyingTo(item.id)}>
-                    <Text style={[styles.commentReply, { color: theme.colors.primary }]}>Reply</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity onPress={() => toggleLikeComment(item.id)} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
+                      <Text style={[styles.commentLike, { color: isDark ? '#888' : '#999' }]}>
+                        {item.liked ? "♥" : "♡"} {item.likes}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setReplyingTo(item.id)} style={{ marginLeft: 15 }}>
+                      <Text style={[styles.commentReply, { color: colors.primary }]}>Reply</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
+            ListEmptyComponent={
+              <View style={{ alignItems: 'center', marginTop: 50 }}>
+                <Text style={{ color: isDark ? '#666' : '#999' }}>No comments yet. Be the first!</Text>
+              </View>
+            }
           />
 
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <View>
               {replyingTo && (
-                <Text style={[styles.replyingToText, { color: theme.colors.primary }]}>
-                  Replying to {comments.find(c => c.id === replyingTo)?.text.slice(0, 20)}...
-                </Text>
+                <View style={styles.replyingContainer}>
+                  <Text style={[styles.replyingToText, { color: colors.primary }]}>
+                    Replying to user...
+                  </Text>
+                  <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                    <Ionicons name="close-circle" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
               )}
-              <View style={[styles.inputRow, { borderColor: theme.colors.card }]}>
+              <View style={[styles.inputRow, { borderColor: isDark ? '#333' : '#eee', borderTopWidth: 1 }]}>
                 <TextInput
-                  style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.card }]}
+                  style={[styles.input, { color: colors.text, backgroundColor: isDark ? '#222' : '#f5f5f5' }]}
                   placeholder="Add a comment..."
-                  placeholderTextColor={theme.isDark ? "#aaa" : "#888"}
+                  placeholderTextColor={isDark ? "#888" : "#aaa"}
                   value={commentText}
                   onChangeText={setCommentText}
                 />
-                <TouchableOpacity onPress={addComment}>
-                  <Text style={[styles.postBtn, { color: theme.colors.primary }]}>Post</Text>
+                <TouchableOpacity onPress={addComment} disabled={!commentText.trim()}>
+                  <Text style={[styles.postBtn, { color: commentText.trim() ? colors.primary : (isDark ? '#444' : '#ccc') }]}>Post</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -268,32 +298,68 @@ const Articles = (props: {
 
 const styles = StyleSheet.create({
   card: {
-    margin: 15,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    marginHorizontal: scale(15),
+    marginVertical: verticalScale(10),
+    borderRadius: moderateScale(16),
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 10,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
-    height: 200,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15
+    height: verticalScale(200),
   },
   content: {
-    padding: 20
+    padding: moderateScale(16),
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(8),
+  },
+  sourceTag: {
+    fontSize: moderateScale(11),
+    fontWeight: '700',
+    paddingHorizontal: scale(8),
+    paddingVertical: verticalScale(4),
+    borderRadius: moderateScale(6),
+    overflow: 'hidden',
+  },
+  dateText: {
+    fontSize: moderateScale(12),
   },
   title: {
-    fontSize: 15,
+    fontSize: moderateScale(18),
     fontWeight: '800',
-    paddingBottom: 8
+    marginBottom: verticalScale(6),
+    lineHeight: moderateScale(24),
+  },
+  description: {
+    fontSize: moderateScale(14),
+    lineHeight: moderateScale(20),
+    marginBottom: verticalScale(10),
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: verticalScale(12),
+  },
+  authorText: {
+    fontSize: moderateScale(12),
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    marginBottom: verticalScale(12),
   },
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 15,
     justifyContent: 'space-between',
   },
   leftIcons: {
@@ -303,78 +369,100 @@ const styles = StyleSheet.create({
   iconBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
+    marginRight: scale(16),
   },
-  likeCount: {
-    marginLeft: 5,
-    fontSize: 14,
+  actionText: {
+    marginLeft: scale(4),
+    fontSize: moderateScale(13),
+    fontWeight: '600',
   },
+
+  // Modal Styles
   modal: {
     justifyContent: "flex-end",
     margin: 0,
   },
   bottomSheet: {
-    height: "70%",
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    paddingHorizontal: 15,
-    paddingTop: 10,
+    height: "75%",
+    borderTopLeftRadius: moderateScale(24),
+    borderTopRightRadius: moderateScale(24),
+    paddingHorizontal: scale(20),
+    paddingTop: verticalScale(12),
+    paddingBottom: verticalScale(20),
   },
   dragHandle: {
-    width: 40,
-    height: 5,
-    borderRadius: 3,
+    width: scale(40),
+    height: verticalScale(4),
+    borderRadius: moderateScale(2),
     alignSelf: "center",
-    marginBottom: 10,
+    marginBottom: verticalScale(20),
+    opacity: 0.5,
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 10,
+    fontSize: moderateScale(18),
+    fontWeight: "800",
+    marginBottom: verticalScale(20),
+    textAlign: 'center',
   },
   commentItem: {
-    marginBottom: 15,
+    marginBottom: verticalScale(20),
+    flexDirection: 'row',
+  },
+  avatarPlaceholder: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: scale(12),
   },
   commentText: {
-    fontSize: 15,
+    fontSize: moderateScale(14),
+    lineHeight: moderateScale(20),
   },
   commentMeta: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 3,
+    marginTop: verticalScale(6),
   },
   commentTime: {
-    fontSize: 12,
+    fontSize: moderateScale(11),
   },
   commentLike: {
-    fontSize: 12,
-    marginRight: 15,
+    fontSize: moderateScale(12),
   },
   commentReply: {
-    fontSize: 12,
+    fontSize: moderateScale(12),
+    fontWeight: '600',
+  },
+  replyingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: verticalScale(8),
+    paddingHorizontal: scale(4),
   },
   replyingToText: {
-    fontSize: 12,
-    marginLeft: 10,
-    marginBottom: 5,
+    fontSize: moderateScale(12),
+    fontWeight: '500',
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: 1,
-    paddingVertical: 10,
+    paddingTop: verticalScale(12),
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
+    borderRadius: moderateScale(24),
+    paddingHorizontal: scale(16),
+    paddingVertical: verticalScale(10),
+    marginRight: scale(12),
+    fontSize: moderateScale(14),
   },
   postBtn: {
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: moderateScale(15),
   },
 });
 
-export default Articles;
+export default React.memo(Articles);

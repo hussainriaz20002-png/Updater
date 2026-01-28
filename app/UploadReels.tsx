@@ -1,5 +1,5 @@
-import Ionicons from "@react-native-vector-icons/ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Image,
@@ -12,24 +12,21 @@ import {
 import { useReels } from "../context/ReelContext";
 import { useTheme } from "../context/ThemeContext";
 
-export default function UploadReels({ route }: any) {
-  const navigation = useNavigation<any>();
-  const { selected } = route.params || {};
+export default function UploadReels() {
+  const router = useRouter();
+  const { selectedUri } = useLocalSearchParams<{ selectedUri: string }>();
   const [caption, setCaption] = useState("");
   const { isDark, colors } = useTheme();
   const { addReel } = useReels();
 
   const handleShare = () => {
-    if (!selected?.uri) return;
+    if (!selectedUri) return;
 
-    const newReel = { uri: selected.uri, caption };
+    const newReel = { uri: selectedUri, caption };
     addReel(newReel);
 
     // Go back to main Reels screen
-    navigation.navigate("Main", {
-      screen: "Reels",
-      params: { newReel },
-    });
+    router.replace("/(tabs)/Reels");
   };
 
   return (
@@ -41,7 +38,7 @@ export default function UploadReels({ route }: any) {
     >
       {/* Back Button */}
       <TouchableOpacity
-        onPress={() => navigation.goBack()}
+        onPress={() => router.back()}
         style={styles.backButton}
       >
         <Ionicons
@@ -52,8 +49,8 @@ export default function UploadReels({ route }: any) {
       </TouchableOpacity>
 
       {/* Preview */}
-      {selected?.uri && (
-        <Image source={{ uri: selected.uri }} style={styles.preview} />
+      {selectedUri && (
+        <Image source={{ uri: selectedUri }} style={styles.preview} />
       )}
 
       {/* Caption Input */}

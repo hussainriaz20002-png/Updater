@@ -1,5 +1,5 @@
-import Ionicons from "@react-native-vector-icons/ionicons";
-import { useIsFocused, useRoute } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
 import moment from "moment";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -23,9 +23,9 @@ import { useTheme } from "../../context/ThemeContext";
 const { height, width } = Dimensions.get("window");
 
 export default function Reels() {
-  const route = useRoute<any>();
-  const isFocused = useIsFocused();
-  const { newReel } = route.params || {};
+  const params = useLocalSearchParams<{ newReelUri?: string; newReelCaption?: string }>();
+  const [isFocused, setIsFocused] = React.useState(true);
+  const newReel = params.newReelUri ? { uri: params.newReelUri, caption: params.newReelCaption || '' } : null;
   const { isDark, colors } = useTheme();
 
   const flatListRef = useRef<FlatList<any>>(null);
