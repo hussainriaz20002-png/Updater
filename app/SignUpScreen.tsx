@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
-import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import { useTheme } from "../context/ThemeContext";
 
@@ -12,7 +12,7 @@ const SignUpScreen = () => {
     title,
     icon,
     route,
-    description
+    description,
   }: {
     title: string;
     icon: keyof typeof Ionicons.glyphMap;
@@ -25,35 +25,62 @@ const SignUpScreen = () => {
         {
           backgroundColor: colors.card,
           shadowColor: isDark ? "#000" : "#ccc",
-          borderColor: isDark ? 'transparent' : 'rgba(0,0,0,0.05)',
-          borderWidth: 1
-        }
+          borderColor: isDark ? "transparent" : "rgba(0,0,0,0.05)",
+          borderWidth: 1,
+        },
       ]}
       activeOpacity={0.9}
       onPress={() => router.push(route)}
     >
-      <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(58, 123, 213, 0.15)' : 'rgba(58, 123, 213, 0.1)' }]}>
+      <View
+        style={[
+          styles.iconContainer,
+          {
+            backgroundColor: isDark
+              ? "rgba(58, 123, 213, 0.15)"
+              : "rgba(58, 123, 213, 0.1)",
+          },
+        ]}
+      >
         <Ionicons name={icon} size={moderateScale(32)} color={colors.primary} />
       </View>
       <View style={styles.textContainer}>
-        <Text style={[styles.optionTitle, { color: colors.text }]}>{title}</Text>
-        <Text style={[styles.optionDescription, { color: isDark ? '#aaa' : '#666' }]}>{description}</Text>
+        <Text style={[styles.optionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
+        <Text
+          style={[
+            styles.optionDescription,
+            { color: isDark ? "#aaa" : "#666" },
+          ]}
+        >
+          {description}
+        </Text>
       </View>
-      <Ionicons name="chevron-forward" size={moderateScale(24)} color={isDark ? '#555' : '#ccc'} />
+      <Ionicons
+        name="chevron-forward"
+        size={moderateScale(24)}
+        color={isDark ? "#555" : "#ccc"}
+      />
     </TouchableOpacity>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'white' }]}
+          style={[
+            styles.backBtn,
+            { backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "white" },
+          ]}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={moderateScale(24)} color={colors.primary} />
+          <Ionicons
+            name="arrow-back"
+            size={moderateScale(24)}
+            color={colors.primary}
+          />
         </TouchableOpacity>
       </View>
 
@@ -62,7 +89,9 @@ const SignUpScreen = () => {
           <Text style={[styles.heading, { color: colors.text }]}>
             Join Updater
           </Text>
-          <Text style={[styles.subHeading, { color: isDark ? '#aaa' : '#666' }]}>
+          <Text
+            style={[styles.subHeading, { color: isDark ? "#aaa" : "#666" }]}
+          >
             Choose how you want to get started
           </Text>
         </View>
@@ -86,15 +115,16 @@ const SignUpScreen = () => {
         {/* Login Link */}
         <TouchableOpacity
           style={styles.loginContainer}
-          onPress={() => router.push("/Login")}
+          onPress={() => router.replace("/Login")}
           activeOpacity={0.8}
         >
-          <Text style={[styles.loginText, { color: isDark ? '#aaa' : '#666' }]}>
+          <Text style={[styles.loginText, { color: isDark ? "#aaa" : "#666" }]}>
             Already have an account?{" "}
-            <Text style={[styles.loginLink, { color: colors.primary }]}>Login</Text>
+            <Text style={[styles.loginLink, { color: colors.primary }]}>
+              Login
+            </Text>
           </Text>
         </TouchableOpacity>
-
       </View>
     </View>
   );
@@ -115,8 +145,8 @@ const styles = StyleSheet.create({
     width: moderateScale(40),
     height: moderateScale(40),
     borderRadius: moderateScale(12),
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -145,8 +175,8 @@ const styles = StyleSheet.create({
     gap: verticalScale(20),
   },
   optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: moderateScale(20),
     borderRadius: moderateScale(20),
     elevation: 4,
@@ -158,8 +188,8 @@ const styles = StyleSheet.create({
     width: moderateScale(60),
     height: moderateScale(60),
     borderRadius: moderateScale(18),
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: scale(16),
   },
   textContainer: {
@@ -175,9 +205,9 @@ const styles = StyleSheet.create({
     lineHeight: moderateScale(18),
   },
   loginContainer: {
-    marginTop: 'auto',
+    marginTop: "auto",
     marginBottom: verticalScale(40),
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: verticalScale(10),
   },
   loginText: {

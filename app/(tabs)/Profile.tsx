@@ -1,160 +1,308 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FlashList } from "@shopify/flash-list";
-import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import Slider from "@react-native-community/slider";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Image,
-  StatusBar,
+  Alert,
+  BackHandler,
+  ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
-import { useReels } from "../../context/ReelContext";
+import DefaultAvatar from "../../components/DefaultAvatar";
+import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const { isDark, colors } = useTheme();
-  const { userReels } = useReels();
+  const { isDark, colors, toggleTheme } = useTheme();
+  const { userData, logout } = useAuth();
+  const insets = useSafeAreaInsets();
 
-  const [name, setName] = useState("User_Name");
-  const [bio, setBio] = useState("Bio....");
-  const [profileImage, setProfileImage] = useState("https://via.placeholder.com/120");
+  // Profile State - Derived directly from userData now
+  const name = userData?.name || "User";
+  const bio = userData?.bio || "No bio yet...";
+  const profileImage = userData?.photoURL; // undefined falls back to DefaultAvatar inside component if logic exists, or we handle here
 
-  const loadProfile = async () => {
-    try {
-      const storedName = await AsyncStorage.getItem("user_name");
-      const storedBio = await AsyncStorage.getItem("user_bio");
-      const storedImage = await AsyncStorage.getItem("user_image");
-      if (storedName) setName(storedName);
-      if (storedBio) setBio(storedBio);
-      if (storedImage) setProfileImage(storedImage);
-    } catch (error) {
-      console.log("Error loading profile:", error);
+  // Settings State
+  const [dailyLimitEnabled, setDailyLimitEnabled] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState(30);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load Settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const storedLimit = await AsyncStorage.getItem("dailyLimit");
+        const storedEnabled = await AsyncStorage.getItem("dailyLimitEnabled");
+        const storedStartTime = await AsyncStorage.getItem("dailyStartTime");
+        const storedDate = await AsyncStorage.getItem("dailyDate");
+
+        const today = new Date().toDateString();
+
+        if (storedDate && storedDate !== today) {
+          await AsyncStorage.multiRemove(["dailyStartTime", "dailyDate"]);
+          await AsyncStorage.setItem("dailyLimitEnabled", "false");
+          setDailyLimitEnabled(false);
+          return;
+        }
+
+        if (storedLimit) setDailyLimit(Number(storedLimit));
+        if (storedEnabled === "true") {
+          setDailyLimitEnabled(true);
+          if (storedStartTime) {
+            const elapsed = Date.now() - Number(storedStartTime);
+            const remaining = Number(storedLimit) * 60 * 1000 - elapsed;
+            if (remaining > 0) startTimer(remaining);
+          }
+        }
+      } catch (error) {
+        console.log("Error loading settings:", error);
+      }
+    };
+    loadSettings();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // Timer Logic
+  const startTimer = (durationMs: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      Alert.alert(
+        "Daily Limit Reached",
+        "Your daily time limit has been reached. The app will now close.",
+        [{ text: "OK", onPress: () => BackHandler.exitApp() }],
+        { cancelable: false },
+      );
+    }, durationMs);
+  };
+
+  const handleToggleLimit = async (value: boolean) => {
+    setDailyLimitEnabled(value);
+    if (value) {
+      const startTime = Date.now();
+      const today = new Date().toDateString();
+      await AsyncStorage.setItem("dailyStartTime", startTime.toString());
+      await AsyncStorage.setItem("dailyLimitEnabled", "true");
+      await AsyncStorage.setItem("dailyLimit", dailyLimit.toString());
+      await AsyncStorage.setItem("dailyDate", today);
+      startTimer(dailyLimit * 60 * 1000);
+    } else {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      await AsyncStorage.multiRemove(["dailyStartTime", "dailyDate"]);
+      await AsyncStorage.setItem("dailyLimitEnabled", "false");
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadProfile();
-    }, [])
-  );
+  const handleLimitChange = async (value: number) => {
+    setDailyLimit(value);
+    await AsyncStorage.setItem("dailyLimit", value.toString());
+  };
 
-  const renderReel = ({ item }: any) => (
+  const handleLogout = () => {
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/");
+        },
+      },
+    ]);
+  };
+
+  const SettingItem = ({
+    icon,
+    label,
+    value,
+    onToggle,
+    onPress,
+    rightElement,
+    destructive = false,
+  }: any) => (
     <TouchableOpacity
-      style={styles.reelBox}
-      activeOpacity={0.8}
-      onPress={() =>
-        router.push({ pathname: "/(tabs)/Reels", params: { fromProfile: "true", selectedReelUri: item.uri } })
-      }
+      style={[
+        styles.settingItem,
+        {
+          backgroundColor: colors.card,
+          borderColor: isDark ? "#333" : "#f0f0f0",
+        },
+      ]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.7}
     >
-      <Image source={{ uri: item.uri }} style={styles.reelThumbnail} resizeMode="cover" />
-      <View style={styles.reelOverlay}>
-        <Ionicons name="play-outline" size={moderateScale(16)} color="#fff" />
+      <View style={styles.settingLeft}>
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: destructive
+                ? "rgba(255,59,48,0.1)"
+                : isDark
+                  ? "#333"
+                  : "#f5f5f5",
+            },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={moderateScale(20)}
+            color={destructive ? "#FF3B30" : colors.primary}
+          />
+        </View>
+        <Text
+          style={[
+            styles.settingLabel,
+            { color: destructive ? "#FF3B30" : colors.text },
+          ]}
+        >
+          {label}
+        </Text>
       </View>
+
+      {rightElement ||
+        (onToggle !== undefined && (
+          <Switch
+            value={value}
+            onValueChange={onToggle}
+            trackColor={{ false: "#e0e0e0", true: colors.primary }}
+            thumbColor={"#fff"}
+          />
+        )) ||
+        (onPress && (
+          <Ionicons
+            name="chevron-forward"
+            size={moderateScale(20)}
+            color={colors.secondaryText || "#999"}
+          />
+        ))}
     </TouchableOpacity>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + verticalScale(20) },
+        ]}
+      >
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarWrapper}>
+            <DefaultAvatar
+              name={name}
+              size={moderateScale(100)}
+              source={profileImage} // Pass the image URL
+            />
+            <TouchableOpacity
+              style={[styles.editBadge, { backgroundColor: colors.primary }]}
+              onPress={() =>
+                router.push({
+                  pathname: "/EditProfile",
+                  params: { name, bio, profileImage },
+                })
+              }
+            >
+              <Ionicons name="pencil" size={moderateScale(14)} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={{ width: scale(24) }} />
-        <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-        <TouchableOpacity
-          style={styles.menuIcon}
-          hitSlop={10}
-          onPress={() => router.push("/ProfileSetting")}
-        >
-          <Ionicons name="settings-outline" size={moderateScale(24)} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+          <Text style={[styles.name, { color: colors.text }]}>{name}</Text>
+          <Text
+            style={[
+              styles.bio,
+              { color: colors.secondaryText || (isDark ? "#aaa" : "#666") },
+            ]}
+          >
+            {bio}
+          </Text>
+        </View>
 
-      <View style={{ flex: 1 }}>
-        <FlashList
-          ListHeaderComponent={
-            <View style={styles.profileInfo}>
-              {/* Avatar */}
-              <View style={[
-                styles.avatarContainer,
-                {
-                  shadowColor: colors.primary,
-                  borderColor: colors.card
-                }
-              ]}>
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.avatar}
-                />
-                <TouchableOpacity
-                  style={[styles.editBadge, { backgroundColor: colors.primary }]}
-                  onPress={() => router.push({ pathname: "/EditProfile", params: { name, bio, profileImage } })}
-                >
-                  <Ionicons name="pencil" size={moderateScale(12)} color="#fff" />
-                </TouchableOpacity>
-              </View>
+        {/* Content Section */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Content
+        </Text>
+        <SettingItem
+          icon="bookmark-outline"
+          label="Saved News"
+          onPress={() => router.push("/SavedArticles")}
+        />
 
-              <Text style={[styles.username, { color: colors.text }]}>{name}</Text>
-              <Text style={[styles.bio, { color: isDark ? "#aaa" : "#666" }]}>{bio}</Text>
+        {/* Preferences Section */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Preferences
+        </Text>
+        <SettingItem
+          icon="moon-outline"
+          label="Dark Mode"
+          value={isDark}
+          onToggle={toggleTheme}
+        />
+        <SettingItem
+          icon="timer-outline"
+          label="Daily Time Limit"
+          value={dailyLimitEnabled}
+          onToggle={handleToggleLimit}
+        />
 
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.text }]}>{userReels.length}</Text>
-                  <Text style={[styles.statLabel, { color: isDark ? "#888" : "#999" }]}>Reels</Text>
-                </View>
-                <View style={[styles.statDivider, { backgroundColor: isDark ? '#333' : '#eee' }]} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.text }]}>120</Text>
-                  <Text style={[styles.statLabel, { color: isDark ? "#888" : "#999" }]}>Followers</Text>
-                </View>
-                <View style={[styles.statDivider, { backgroundColor: isDark ? '#333' : '#eee' }]} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statValue, { color: colors.text }]}>45</Text>
-                  <Text style={[styles.statLabel, { color: isDark ? "#888" : "#999" }]}>Following</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.editBtn, { backgroundColor: colors.primary }]}
-                activeOpacity={0.8}
-                onPress={() => router.push({ pathname: "/EditProfile", params: { name, bio, profileImage } })}
-              >
-                <Text style={styles.editText}>Edit Profile</Text>
-              </TouchableOpacity>
-
-              {/* Tab Indicator */}
-              <View style={styles.tabRow}>
-                <View style={[styles.activeTab, { borderBottomColor: colors.text }]}>
-                  <Ionicons name="grid-outline" size={moderateScale(24)} color={colors.text} />
-                </View>
-                <View style={styles.inactiveTab}>
-                  <Ionicons name="bookmark-outline" size={moderateScale(24)} color={isDark ? "#555" : "#ccc"} />
-                </View>
-              </View>
-            </View>
-          }
-          data={userReels}
-          renderItem={renderReel}
-          keyExtractor={(_, i) => i.toString()}
-          numColumns={3}
-          estimatedItemSize={moderateScale(120)}
-          contentContainerStyle={styles.reelGrid}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="videocam-outline" size={moderateScale(40)} color={isDark ? "#333" : "#eee"} />
-              <Text style={[styles.noReels, { color: isDark ? "#aaa" : "#777" }]}>
-                No reels yet
+        {dailyLimitEnabled && (
+          <View
+            style={[
+              styles.sliderContainer,
+              {
+                backgroundColor: colors.card,
+                borderColor: isDark ? "#333" : "#f0f0f0",
+              },
+            ]}
+          >
+            <View style={styles.sliderHeader}>
+              <Text style={[styles.sliderLabel, { color: colors.text }]}>
+                Limit Duration
+              </Text>
+              <Text style={[styles.limitValue, { color: colors.primary }]}>
+                {dailyLimit} min
               </Text>
             </View>
-          }
+            <Slider
+              style={{ width: "100%", height: 40 }}
+              minimumValue={5}
+              maximumValue={120}
+              step={5}
+              value={dailyLimit}
+              minimumTrackTintColor={colors.primary}
+              maximumTrackTintColor={isDark ? "#444" : "#ddd"}
+              thumbTintColor={colors.primary}
+              onValueChange={handleLimitChange}
+            />
+          </View>
+        )}
+
+        {/* Actions Section */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Account
+        </Text>
+        <SettingItem
+          icon="log-out-outline"
+          label="Log Out"
+          onPress={handleLogout}
+          destructive
         />
-      </View>
+
+        <View style={{ height: verticalScale(40) }} />
+      </ScrollView>
     </View>
   );
 };
@@ -163,156 +311,105 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: verticalScale(40),
-    paddingBottom: verticalScale(10),
+  scrollContent: {
     paddingHorizontal: scale(20),
   },
-  title: {
-    fontSize: moderateScale(18),
-    fontWeight: "700",
-    letterSpacing: 0.5
+  profileHeader: {
+    alignItems: "center",
+    marginBottom: verticalScale(30),
   },
-  menuIcon: {
-    padding: 5
-  },
-  profileInfo: {
-    alignItems: 'center',
-    paddingTop: verticalScale(10),
-  },
-  avatarContainer: {
+  avatarWrapper: {
     marginBottom: verticalScale(16),
-    elevation: 5,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    borderWidth: 2,
-    borderRadius: moderateScale(60),
-    padding: 2,
-  },
-  avatar: {
-    width: moderateScale(100),
-    height: moderateScale(100),
-    borderRadius: moderateScale(50),
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   editBadge: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
-    width: moderateScale(30),
-    height: moderateScale(30),
-    borderRadius: moderateScale(15),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff'
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#fff", // Adaptive bg color in component
   },
-  username: {
-    fontSize: moderateScale(20),
-    fontWeight: "700",
-    marginBottom: verticalScale(4)
+  name: {
+    fontSize: moderateScale(24),
+    fontWeight: "800",
+    marginBottom: verticalScale(4),
+    letterSpacing: 0.5,
   },
   bio: {
     fontSize: moderateScale(14),
     textAlign: "center",
-    marginBottom: verticalScale(20),
-    paddingHorizontal: scale(40),
-    lineHeight: moderateScale(20)
+    lineHeight: moderateScale(20),
+    paddingHorizontal: scale(20),
   },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: verticalScale(24),
-    width: '100%'
-  },
-  statItem: {
-    alignItems: 'center',
-    width: scale(80),
-  },
-  statValue: {
-    fontSize: moderateScale(18),
-    fontWeight: '700',
-    marginBottom: verticalScale(2)
-  },
-  statLabel: {
-    fontSize: moderateScale(12),
-  },
-  statDivider: {
-    width: 1,
-    height: verticalScale(24)
-  },
-  editBtn: {
-    borderRadius: moderateScale(24),
-    paddingVertical: verticalScale(10),
-    paddingHorizontal: scale(30),
-    alignItems: "center",
-    alignSelf: "center",
-    shadowColor: "#3A7BD5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: verticalScale(20),
-  },
-  editText: {
+  sectionTitle: {
     fontSize: moderateScale(14),
     fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 0.5,
+    opacity: 0.6,
+    marginBottom: verticalScale(12),
+    marginTop: verticalScale(8),
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
-  tabRow: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-around',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    marginTop: verticalScale(10)
+  settingItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: moderateScale(16),
+    borderRadius: moderateScale(16),
+    marginBottom: verticalScale(12),
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  activeTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingBottom: verticalScale(10),
-    borderBottomWidth: 2,
+  settingLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  inactiveTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingBottom: verticalScale(10),
+  iconContainer: {
+    width: moderateScale(38),
+    height: moderateScale(38),
+    borderRadius: moderateScale(12),
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: scale(14),
   },
-  reelGrid: {
-    paddingTop: 2
+  settingLabel: {
+    fontSize: moderateScale(16),
+    fontWeight: "600",
   },
-  reelBox: {
-    flex: 1,
-    aspectRatio: 0.8,
-    margin: 1,
-    position: 'relative'
+  sliderContainer: {
+    padding: moderateScale(16),
+    borderRadius: moderateScale(16),
+    marginTop: verticalScale(-4),
+    marginBottom: verticalScale(12),
+    borderWidth: 1,
   },
-  reelThumbnail: {
-    width: "100%",
-    height: "100%",
+  sliderHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: verticalScale(4),
   },
-  reelOverlay: {
-    position: 'absolute',
-    bottom: 5,
-    left: 5,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2
+  sliderLabel: {
+    fontSize: moderateScale(14),
+    fontWeight: "500",
   },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: verticalScale(40),
-    opacity: 0.7
-  },
-  noReels: {
-    textAlign: "center",
-    marginTop: verticalScale(10),
-    fontSize: moderateScale(14)
+  limitValue: {
+    fontSize: moderateScale(16),
+    fontWeight: "700",
   },
 });
 

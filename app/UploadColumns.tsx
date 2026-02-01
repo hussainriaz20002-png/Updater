@@ -1,290 +1,467 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { useRouter } from "expo-router";
+import { addDoc, collection } from "firebase/firestore";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
+  Easing,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
+import { db } from "../config/firebase";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
+const { width } = Dimensions.get("window");
+
 export default function UploadArticle() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const theme = useTheme();
+  const { userData } = useAuth();
+  const insets = useSafeAreaInsets();
   const [language, setLanguage] = useState("english");
   const [title, setTitle] = useState("");
   const [column, setColumn] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const maxWords = 2000;
   const wordCount = column.trim().split(/\s+/).filter(Boolean).length;
+
+  // Animations
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const contentAnim = useRef(new Animated.Value(0)).current;
+  const footerAnim = useRef(new Animated.Value(0)).current;
+
+  // Staggered Entry Animation
+  useEffect(() => {
+    Animated.stagger(150, [
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(contentAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+      Animated.timing(footerAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }),
+    ]).start();
+  }, []);
+
+  const translateY = contentAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [50, 0],
+  });
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
   };
 
-  const handleColumnChange = (text: string) => {
-    const words = text.trim().split(/\s+/);
-    if (words.length <= maxWords) {
-      setColumn(text);
-    }
-  };
-
-  // ✅ Handle Upload
   const handleUpload = async () => {
     if (!title.trim() || !column.trim()) {
       Alert.alert("Missing Info", "Please add both title and column text.");
       return;
     }
 
+    if (wordCount > maxWords) {
+      Alert.alert(
+        "Word Limit Exceeded",
+        `Please reduce your column to ${maxWords} words.`,
+      );
+      return;
+    }
+
+    setLoading(true);
+
     const newArticle = {
-      id: Date.now().toString(),
-      author: "Hamid Mir",
+      author: userData?.name || "Unknown Author",
+      authorId: userData?.uid, // Save UID for dynamic lookup
+      authorImage: userData?.photoURL || null,
       title,
       column,
       language,
+      date: new Date().toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      createdAt: new Date(),
+      likes: [],
+      comments: [],
     };
 
     try {
-      const stored = await AsyncStorage.getItem("articles");
-      const articles = stored ? JSON.parse(stored) : [];
-
-      articles.push(newArticle);
-
-      await AsyncStorage.setItem("articles", JSON.stringify(articles));
-
+      await addDoc(collection(db, "articles"), newArticle);
       Alert.alert("Success", "Column uploaded successfully!");
       setTitle("");
       setColumn("");
-      navigation.goBack();
+      router.back();
     } catch (error) {
       console.log("Error saving article:", error);
       Alert.alert("Error", "Something went wrong while uploading.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: headerAnim,
+            transform: [
+              {
+                translateY: headerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0],
+                }),
+              },
+            ],
+            paddingTop: verticalScale(20) + insets.top,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            styles.backButton,
+            {
+              backgroundColor: theme.isDark
+                ? "rgba(255,255,255,0.1)"
+                : "#f5f5f5",
+            },
+          ]}
+        >
+          <Ionicons
+            name="close"
+            size={moderateScale(24)}
+            color={theme.colors.text}
+          />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
           New Column
         </Text>
-      </View>
+        <TouchableOpacity
+          // Optional: Draft save or just placeholder for balance
+          style={{ width: 40 }}
+        />
+      </Animated.View>
 
-      {/* Select a Language */}
-      <View style={styles.languageSection}>
-        <Text style={[styles.selectLangText, { color: theme.colors.text }]}>
-          Select Language
-        </Text>
-
-        <View style={styles.languageOptions}>
-          {/* English */}
-          <TouchableOpacity
-            style={styles.languageRow}
-            onPress={() => handleLanguageChange("english")}
-          >
-            <View
-              style={[
-                styles.radioOuter,
-                {
-                  borderColor:
-                    language === "english"
-                      ? theme.colors.primary
-                      : theme.colors.text,
-                },
-              ]}
-            >
-              {language === "english" && (
-                <View
-                  style={[styles.radioInner, { backgroundColor: theme.colors.primary }]}
-                />
-              )}
-            </View>
-            <Text style={[styles.languageLabel, { color: theme.colors.text }]}>
-              English
-            </Text>
-          </TouchableOpacity>
-
-          {/* Urdu */}
-          <TouchableOpacity
-            style={styles.languageRow}
-            onPress={() => handleLanguageChange("urdu")}
-          >
-            <View
-              style={[
-                styles.radioOuter,
-                {
-                  borderColor:
-                    language === "urdu"
-                      ? theme.colors.primary
-                      : theme.colors.text,
-                },
-              ]}
-            >
-              {language === "urdu" && (
-                <View
-                  style={[styles.radioInner, { backgroundColor: theme.colors.primary }]}
-                />
-              )}
-            </View>
-            <Text style={[styles.languageLabel, { color: theme.colors.text }]}>
-              Urdu
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Title input */}
-      <TextInput
-        style={[
-          styles.input,
-          {
-            borderColor: theme.colors.card,
-            color: theme.colors.text,
-            backgroundColor: theme.isDark ? "#121212" : "#f9f9f9",
-            textAlign: language === "urdu" ? "right" : "left",
-            writingDirection: language === "urdu" ? "rtl" : "ltr",
-          },
-        ]}
-        placeholder={language === "urdu" ? "عنوان شامل کریں" : "Add a Title"}
-        placeholderTextColor={theme.isDark ? "#aaa" : "#888"}
-        keyboardType="default"
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      {/* Column input */}
-      <TextInput
-        style={[
-          styles.columnInput,
-          {
-            borderColor: theme.colors.card,
-            color: theme.colors.text,
-            backgroundColor: theme.isDark ? "#121212" : "#f9f9f9",
-            textAlign: language === "urdu" ? "right" : "left",
-            writingDirection: language === "urdu" ? "rtl" : "ltr",
-          },
-        ]}
-        placeholder={language === "urdu" ? "کالم لکھیں" : "Write Column"}
-        placeholderTextColor={theme.isDark ? "#aaa" : "#888"}
-        multiline
-        textAlignVertical="top"
-        keyboardType="default"
-        value={column}
-        onChangeText={handleColumnChange}
-      />
-
-      {/* Word count */}
-      <Text style={[styles.wordCount, { color: theme.colors.text }]}>
-        {wordCount}/{maxWords}
-      </Text>
-
-      {/* Upload button */}
-      <TouchableOpacity
-        style={[
-          styles.uploadButton,
-          { backgroundColor: theme.colors.primary },
-        ]}
-        onPress={handleUpload}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.uploadButtonText}>Upload Column</Text>
-      </TouchableOpacity>
+        <Animated.View
+          style={{ opacity: contentAnim, transform: [{ translateY }] }}
+        >
+          {/* Language Toggle */}
+          <View style={styles.segmentContainer}>
+            <TouchableOpacity
+              onPress={() => setLanguage("english")}
+              style={[
+                styles.segmentButton,
+                language === "english" && {
+                  backgroundColor: theme.colors.primary,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  language === "english"
+                    ? { color: "#fff", fontWeight: "700" }
+                    : { color: theme.colors.secondaryText },
+                ]}
+              >
+                English
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setLanguage("urdu")}
+              style={[
+                styles.segmentButton,
+                language === "urdu" && {
+                  backgroundColor: theme.colors.primary,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  language === "urdu"
+                    ? { color: "#fff", fontWeight: "700" }
+                    : { color: theme.colors.secondaryText },
+                ]}
+              >
+                Urdu
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Title Input */}
+          <View style={styles.inputGroup}>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: theme.colors.secondaryText,
+                  textAlign: language === "urdu" ? "right" : "left",
+                },
+              ]}
+            >
+              {language === "urdu" ? "عنوان" : "TITLE"}
+            </Text>
+            <TextInput
+              style={[
+                styles.titleInput,
+                {
+                  color: theme.colors.text,
+                  textAlign: language === "urdu" ? "right" : "left",
+                },
+              ]}
+              placeholder={
+                language === "urdu" ? "عنوان" : "Enter a catchy title..."
+              }
+              placeholderTextColor={theme.isDark ? "#555" : "#ccc"}
+              multiline
+              value={title}
+              onChangeText={setTitle}
+            />
+          </View>
+
+          {/* Content Input */}
+          <View style={styles.inputGroup}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={[
+                  styles.label,
+                  {
+                    color: theme.colors.secondaryText,
+                    textAlign: language === "urdu" ? "right" : "left",
+                  },
+                ]}
+              >
+                {language === "urdu" ? "کالم" : "STORY"}
+              </Text>
+              <Text
+                style={[
+                  styles.wordCount,
+                  {
+                    color:
+                      wordCount > maxWords ? "#FF3B30" : theme.colors.primary,
+                  },
+                ]}
+              >
+                {wordCount} / {maxWords}
+              </Text>
+            </View>
+
+            <TextInput
+              style={[
+                styles.contentInput,
+                {
+                  color: theme.colors.text,
+                  textAlign: language === "urdu" ? "right" : "left",
+                  lineHeight: moderateScale(24),
+                },
+              ]}
+              placeholder={
+                language === "urdu" ? "یہاں لکھیں..." : "Tell your story..."
+              }
+              placeholderTextColor={theme.isDark ? "#555" : "#ccc"}
+              multiline
+              textAlignVertical="top"
+              scrollEnabled={false}
+              value={column}
+              onChangeText={setColumn}
+            />
+          </View>
+
+          <View style={{ height: verticalScale(100) }} />
+        </Animated.View>
+      </ScrollView>
+
+      {/* Floating Action Bar */}
+      <Animated.View
+        style={[
+          styles.actionBar,
+          {
+            opacity: footerAnim,
+            transform: [
+              {
+                translateY: footerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [100, 0],
+                }),
+              },
+            ],
+            paddingBottom: verticalScale(20) + insets.bottom,
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.isDark ? "#333" : "#f0f0f0",
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.publishButton,
+            {
+              backgroundColor: theme.colors.primary,
+              opacity: wordCount > maxWords ? 0.5 : 1,
+            },
+          ]}
+          onPress={handleUpload}
+          disabled={wordCount > maxWords || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.publishText}>Publish Now</Text>
+              <Ionicons
+                name="arrow-up-circle"
+                size={24}
+                color="#fff"
+                style={{ marginLeft: 8 }}
+              />
+            </>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 15,
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
+    justifyContent: "space-between",
+    paddingHorizontal: scale(20),
+    paddingBottom: verticalScale(10),
+    zIndex: 10,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginLeft: 10,
-  },
-  // Language Section
-  languageSection: {
-    marginBottom: 25,
-  },
-  selectLangText: {
-    fontSize: 15,
-    fontWeight: "500",
-    marginBottom: 10,
-    marginLeft: 15,
-    marginTop: 15,
-  },
-  languageOptions: {
-    alignItems: "flex-start",
-    marginLeft: 20,
-  },
-  languageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
   },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  headerTitle: {
+    fontSize: moderateScale(16),
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
-  languageLabel: {
-    fontSize: 15,
+  scrollContent: {
+    paddingHorizontal: scale(24),
+    paddingTop: verticalScale(10),
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    fontSize: 16,
-    marginBottom: 15,
+
+  // Segment Control
+  segmentContainer: {
+    flexDirection: "row",
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: moderateScale(12),
+    padding: 4,
+    marginBottom: verticalScale(30),
   },
-  columnInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    height: 200,
-    padding: 10,
-    fontSize: 16,
+  segmentButton: {
+    flex: 1,
+    paddingVertical: verticalScale(8),
+    alignItems: "center",
+    borderRadius: moderateScale(8),
+  },
+  segmentText: {
+    fontSize: moderateScale(14),
+    fontWeight: "600",
+  },
+
+  // Inputs
+  inputGroup: {
+    marginBottom: verticalScale(30),
+  },
+  label: {
+    fontSize: moderateScale(12),
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: verticalScale(10),
+    opacity: 0.6,
+  },
+  titleInput: {
+    fontSize: moderateScale(28),
+    fontWeight: "800",
+    paddingVertical: verticalScale(10),
+  },
+  contentInput: {
+    fontSize: moderateScale(18),
+    minHeight: verticalScale(200),
+    // No padding horizontal to align with label perfectly
   },
   wordCount: {
-    textAlign: "right",
-    fontSize: 13,
-    marginTop: 5,
+    fontSize: moderateScale(12),
+    fontWeight: "700",
   },
-  uploadButton: {
-    borderRadius: 10,
-    paddingVertical: 12,
-    marginTop: 25,
+
+  // Action Bar
+  actionBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: scale(20),
+    paddingTop: verticalScale(20),
+    borderTopWidth: 1,
   },
-  uploadButtonText: {
+  publishButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(16),
+    borderRadius: moderateScale(16),
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  publishText: {
     color: "#fff",
-    fontSize: 16,
-    textAlign: "center",
-    fontWeight: "600",
+    fontSize: moderateScale(16),
+    fontWeight: "700",
   },
 });

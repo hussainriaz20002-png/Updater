@@ -1,15 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
 const DeepDive = () => {
-  const router = useRouter();
   const { url } = useLocalSearchParams<{ url: string }>();
+  const { top } = useSafeAreaInsets();
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: top }}>
       {/* Floating header */}
       <View style={styles.header}>
         <TouchableOpacity

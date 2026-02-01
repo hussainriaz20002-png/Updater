@@ -2,16 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import React from "react";
-import {
-  Image,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
-import { useSavedArticles } from '../context/SavedArticlesContext';
+import { useSavedArticles } from "../context/SavedArticlesContext";
 import { useTheme } from "../context/ThemeContext";
 
 const SavedArticles = () => {
@@ -20,14 +13,7 @@ const SavedArticles = () => {
   const { isDark, colors } = useTheme();
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.headerContainer}>
         <TouchableOpacity
@@ -35,10 +21,14 @@ const SavedArticles = () => {
           style={styles.backButton}
           hitSlop={10}
         >
-          <Ionicons name="arrow-back" size={moderateScale(24)} color={colors.text} />
+          <Ionicons
+            name="arrow-back"
+            size={moderateScale(24)}
+            color={colors.text}
+          />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Saved Articles
+          Saved News
         </Text>
         <View style={{ width: scale(24) }} />
       </View>
@@ -46,7 +36,7 @@ const SavedArticles = () => {
       <FlashList
         data={savedArticles}
         keyExtractor={(item: any) => item.url}
-        estimatedItemSize={moderateScale(280)}
+        // estimatedItemSize={moderateScale(280)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: verticalScale(20) }}
         renderItem={({ item }: { item: any }) => (
@@ -55,7 +45,7 @@ const SavedArticles = () => {
               styles.card,
               {
                 backgroundColor: colors.card,
-                shadowColor: colors.primary
+                shadowColor: colors.primary,
               },
             ]}
             activeOpacity={0.9}
@@ -68,22 +58,26 @@ const SavedArticles = () => {
                   description: item.description,
                   content: item.content,
                   url: item.url,
-                }
+                },
               })
             }
           >
             {item.urlToImage && (
-              <Image source={{ uri: item.urlToImage }} style={styles.image} resizeMode="cover" />
+              <Image
+                source={{ uri: item.urlToImage }}
+                style={styles.image}
+                resizeMode="cover"
+              />
             )}
             <View style={styles.textContainer}>
-              <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+              <Text
+                style={[styles.title, { color: colors.text }]}
+                numberOfLines={2}
+              >
                 {item.title}
               </Text>
               <Text
-                style={[
-                  styles.desc,
-                  { color: isDark ? "#aaa" : "#555" },
-                ]}
+                style={[styles.desc, { color: isDark ? "#aaa" : "#555" }]}
                 numberOfLines={3}
               >
                 {item.description}
@@ -108,7 +102,11 @@ const SavedArticles = () => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="bookmark-outline" size={moderateScale(60)} color={isDark ? "#333" : "#eee"} />
+            <Ionicons
+              name="bookmark-outline"
+              size={moderateScale(60)}
+              color={isDark ? "#333" : "#eee"}
+            />
             <Text style={[styles.empty, { color: colors.text }]}>
               No saved articles yet.
             </Text>
@@ -127,7 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingTop: verticalScale(40),
     paddingBottom: verticalScale(15),
-    marginBottom: verticalScale(10)
+    marginBottom: verticalScale(10),
   },
   backButton: { padding: 5 },
   headerTitle: { fontSize: moderateScale(20), fontWeight: "700" },
@@ -143,21 +141,35 @@ const styles = StyleSheet.create({
   },
   image: { width: "100%", height: verticalScale(180) },
   textContainer: { padding: moderateScale(16) },
-  title: { fontSize: moderateScale(16), fontWeight: "700", marginBottom: verticalScale(4), lineHeight: moderateScale(22) },
-  desc: { fontSize: moderateScale(14), marginVertical: verticalScale(8), lineHeight: moderateScale(20) },
+  title: {
+    fontSize: moderateScale(16),
+    fontWeight: "700",
+    marginBottom: verticalScale(4),
+    lineHeight: moderateScale(22),
+  },
+  desc: {
+    fontSize: moderateScale(14),
+    marginVertical: verticalScale(8),
+    lineHeight: moderateScale(20),
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: verticalScale(8)
+    marginTop: verticalScale(8),
   },
   source: { fontSize: moderateScale(12), fontWeight: "600" },
   emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: verticalScale(100)
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: verticalScale(100),
   },
-  empty: { textAlign: "center", marginTop: verticalScale(16), fontSize: moderateScale(16), opacity: 0.7 },
+  empty: {
+    textAlign: "center",
+    marginTop: verticalScale(16),
+    fontSize: moderateScale(16),
+    opacity: 0.7,
+  },
 });
 
 export default SavedArticles;

@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,57 +14,35 @@ import {
   View,
 } from "react-native";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { doc, setDoc } from "firebase/firestore";
-import { ActivityIndicator, Alert } from "react-native";
-import { db } from "../config/firebase";
-import { useAuth } from "../context/AuthContext";
-
-const SignUpUser = () => {
+export default function ForgotPassword() {
   const { colors, isDark } = useTheme();
-  const { signUp, error, resetError, refreshUserData } = useAuth();
-
-  const [fullName, setFullName] = useState("");
+  const { resetPassword, error, resetError } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [localLoading, setLocalLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
-    if (!email || !password || !fullName) {
-      Alert.alert("Error", "Please fill in all fields.");
+  const handleReset = async () => {
+    if (!email) {
+      Alert.alert("Error", "Please enter your email address.");
       return;
     }
 
     resetError();
-    setLocalLoading(true);
+    setLoading(true);
 
     try {
-      const { user } = await signUp(email, password);
-      // Save role as 'user' locally for now
-      await AsyncStorage.setItem("userRole", "user");
-      await AsyncStorage.setItem("userName", fullName);
-
-      // Store in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name: fullName,
-        email: email,
-        role: "user",
-        bio: "",
-        photoURL: "", // Empty string to use local default avatar
-        createdAt: new Date(),
-      });
-
-      // Force refresh of user data to ensure context is updated before navigation
-      await refreshUserData();
-
-      router.replace("/(tabs)/Home");
+      await resetPassword(email);
+      Alert.alert(
+        "Check your email",
+        "A password reset link has been sent to your email address.",
+        [{ text: "OK", onPress: () => router.back() }],
+      );
     } catch (e: any) {
-      Alert.alert("Sign Up Failed", e.message || "Something went wrong.");
+      Alert.alert("Failed", error || e.message || "Could not send reset link.");
     } finally {
-      setLocalLoading(false);
+      setLoading(false);
     }
   };
 
@@ -76,7 +56,7 @@ const SignUpUser = () => {
         keyboardShouldPersistTaps="handled"
         style={[styles.container, { backgroundColor: colors.background }]}
       >
-        {/* Back Button */}
+        {/* Header / Back Button */}
         <View style={styles.header}>
           <TouchableOpacity
             style={[
@@ -94,16 +74,18 @@ const SignUpUser = () => {
         </View>
 
         <View style={styles.mainContent}>
+          {/* Title Section */}
           <View style={styles.textContainer}>
-            <Text style={[styles.welcomeText, { color: colors.text }]}>
-              Join as User
+            <Text style={[styles.titleText, { color: colors.text }]}>
+              Forgot Password?
             </Text>
             <Text style={[styles.subText, { color: isDark ? "#aaa" : "#666" }]}>
-              Create an account to read and follow
+              Don't worry! It happens. Please enter the address associated with
+              your account.
             </Text>
           </View>
 
-          {/* Card */}
+          {/* Form Card */}
           <View
             style={[
               styles.card,
@@ -113,38 +95,6 @@ const SignUpUser = () => {
               },
             ]}
           >
-            {/* Error Message */}
-            {/* Error Message Removed - using Alert instead */}
-
-            {/* Full Name Input */}
-            <Text style={[styles.label, { color: colors.text }]}>
-              Full Name
-            </Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {
-                  borderColor: isDark ? "#444" : "#e0e0e0",
-                  backgroundColor: isDark ? "#1a1a1a" : "#f9f9f9",
-                },
-              ]}
-            >
-              <Ionicons
-                name="person-outline"
-                size={moderateScale(20)}
-                color={colors.primary}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="John Doe"
-                placeholderTextColor={isDark ? "#666" : "#aaa"}
-                value={fullName}
-                onChangeText={setFullName}
-              />
-            </View>
-
-            {/* Email Input */}
             <Text style={[styles.label, { color: colors.text }]}>
               Email Address
             </Text>
@@ -174,50 +124,23 @@ const SignUpUser = () => {
               />
             </View>
 
-            {/* Password Input */}
-            <Text style={[styles.label, { color: colors.text }]}>Password</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                {
-                  borderColor: isDark ? "#444" : "#e0e0e0",
-                  backgroundColor: isDark ? "#1a1a1a" : "#f9f9f9",
-                },
-              ]}
-            >
-              <Ionicons
-                name="lock-closed-outline"
-                size={moderateScale(20)}
-                color={colors.primary}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="********"
-                placeholderTextColor={isDark ? "#666" : "#aaa"}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
-
-            {/* Sign Up Button */}
+            {/* Submit Button */}
             <TouchableOpacity
               style={[
-                styles.button,
+                styles.submitBtn,
                 {
                   backgroundColor: colors.primary,
-                  opacity: localLoading ? 0.7 : 1,
+                  opacity: loading ? 0.7 : 1,
                 },
               ]}
               activeOpacity={0.8}
-              onPress={handleSignUp}
-              disabled={localLoading}
+              onPress={handleReset}
+              disabled={loading}
             >
-              {localLoading ? (
+              {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
+                <Text style={styles.submitText}>Send Reset Link</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -225,9 +148,7 @@ const SignUpUser = () => {
       </ScrollView>
     </KeyboardAvoidingView>
   );
-};
-
-export default SignUpUser;
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -236,7 +157,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: scale(20),
     paddingTop: verticalScale(50),
-    marginBottom: verticalScale(20),
+    marginBottom: verticalScale(10),
   },
   backBtn: {
     width: moderateScale(40),
@@ -253,20 +174,19 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
     paddingHorizontal: scale(24),
-    paddingBottom: verticalScale(40),
   },
   textContainer: {
-    marginBottom: verticalScale(30),
+    marginBottom: verticalScale(20),
   },
-  welcomeText: {
+  titleText: {
     fontSize: moderateScale(28),
     fontWeight: "800",
-    marginBottom: verticalScale(8),
+    marginBottom: verticalScale(10),
     letterSpacing: 0.5,
   },
   subText: {
     fontSize: moderateScale(16),
-    lineHeight: moderateScale(22),
+    lineHeight: moderateScale(24),
   },
   card: {
     borderRadius: moderateScale(24),
@@ -275,7 +195,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
-    marginBottom: verticalScale(30),
   },
   label: {
     fontSize: moderateScale(14),
@@ -300,18 +219,17 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(16),
     height: "100%",
   },
-  button: {
+  submitBtn: {
     borderRadius: moderateScale(16),
     paddingVertical: verticalScale(16),
     alignItems: "center",
-    marginTop: verticalScale(10),
     shadowColor: "#3A7BD5",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
   },
-  buttonText: {
+  submitText: {
     color: "#fff",
     fontSize: moderateScale(18),
     fontWeight: "700",

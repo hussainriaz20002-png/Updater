@@ -1,28 +1,28 @@
-import { router } from 'expo-router';
-import React from 'react';
-import { ImageBackground, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { moderateScale, scale, verticalScale } from 'react-native-size-matters';
+import { router } from "expo-router";
+import React from "react";
+import {
+  ImageBackground,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 // @ts-ignore
-import getStartedImage from '../assets/images/getStarted.png';
+import getStartedImage from "../assets/images/getStarted.png";
 
 const GetStarted = () => {
   return (
     <ImageBackground
       source={getStartedImage}
       style={styles.backgroundImage}
-      resizeMode='cover'
+      resizeMode="cover"
     >
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
       {/* Overlay Gradient Effect (Simulated with background color) */}
       <View style={styles.overlay}>
         <View style={styles.contentContainer}>
-          <Text style={styles.brandTitle}>
-            Updater
-          </Text>
-          <Text style={styles.brandSubtitle}>
-            Stay informed. Stay ahead.
-          </Text>
+          <Text style={styles.brandTitle}>Updater</Text>
+          <Text style={styles.brandSubtitle}>Stay informed. Stay ahead.</Text>
 
           <View style={styles.bottomSection}>
             <TouchableOpacity
@@ -36,53 +36,53 @@ const GetStarted = () => {
         </View>
       </View>
     </ImageBackground>
-  )
-}
+  );
+};
 
-export default GetStarted
+export default GetStarted;
 
 const styles = StyleSheet.create({
   backgroundImage: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)', // Adds dimming for better text readability
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.3)", // Adds dimming for better text readability
+    justifyContent: "flex-end",
   },
   contentContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: scale(20),
   },
   brandTitle: {
-    color: 'white',
+    color: "white",
     fontSize: moderateScale(48),
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: verticalScale(150),
     fontFamily: "Itim", // Keeping the requested font
     letterSpacing: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10
+    textShadowRadius: 10,
   },
   brandSubtitle: {
-    color: 'rgba(255,255,255,0.9)',
+    color: "rgba(255,255,255,0.9)",
     fontSize: moderateScale(16),
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: verticalScale(10),
     letterSpacing: 0.5,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   bottomSection: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
     marginBottom: verticalScale(60),
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
   },
   button: {
     backgroundColor: "#3A7BD5",
@@ -104,5 +104,5 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(18),
     fontWeight: "700",
     letterSpacing: 0.5,
-  }
+  },
 });

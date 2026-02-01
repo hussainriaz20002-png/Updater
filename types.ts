@@ -17,6 +17,5 @@ export type RootStackParamList = {
   Reels: { reels: { uri: string; caption?: string }[]; startIndex?: number };
   EditProfile: { selected: { uri: string } };
   ProfileSetting: { selected: { uri: string } };
-SavedArticles: undefined;
-
+  SavedArticles: undefined;
 };

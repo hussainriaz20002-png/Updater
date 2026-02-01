@@ -1,10 +1,10 @@
 import { FlashList } from "@shopify/flash-list";
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
-import Articles from '../../components/Articles';
-import Categories from '../../components/Categories';
-import HomeHeader from '../../components/HomeHeader';
-import { useTheme } from '../../context/ThemeContext';
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import Articles from "../../components/Articles";
+import Categories from "../../components/Categories";
+import HomeHeader from "../../components/HomeHeader";
+import { useTheme } from "../../context/ThemeContext";
 
 const Home = () => {
   const { colors, isDark } = useTheme();
@@ -26,6 +26,7 @@ const Home = () => {
       const response = await fetch(url);
       const data = await response.json();
       setArticles(data.articles);
+      // console.log(data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -37,46 +38,50 @@ const Home = () => {
     getNews(activeCategory);
   }, [activeCategory]);
 
-  const renderItem = React.useCallback(({ item }: { item: any }) => (
-    <Articles
-      urlToImage={item.urlToImage}
-      title={item.title}
-      description={item.description}
-      author={item.author}
-      publishedAt={item.publishedAt}
-      source={item.source?.name}
-      url={item.url}
-      content={item.content}
-    />
-  ), []);
+  const renderItem = React.useCallback(
+    ({ item }: { item: any }) => (
+      <Articles
+        urlToImage={item.urlToImage}
+        title={item.title}
+        description={item.description}
+        author={item.author}
+        publishedAt={item.publishedAt}
+        source={item.source?.name}
+        url={item.url}
+        content={item.content}
+      />
+    ),
+    [],
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.card} />
       <HomeHeader />
       <Categories
         activeCategory={activeCategory}
         setActiveCategory={setActiveCategory}
       />
 
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={colors.primary}
-          style={{ marginTop: 20 }}
-        />
-      ) : (
-        <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        {loading && articles.length === 0 ? (
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
           <FlashList
             data={articles}
             keyExtractor={(item, index) => item.url || index.toString()}
             renderItem={renderItem}
             contentContainerStyle={{ paddingBottom: 80 }}
             showsVerticalScrollIndicator={false}
-          // estimatedItemSize={moderateScale(380)}
+            // estimatedItemSize={moderateScale(380)}
+            refreshing={loading}
+            onRefresh={() => getNews(activeCategory)}
           />
-        </View>
-      )}
+        )}
+      </View>
     </View>
   );
 };

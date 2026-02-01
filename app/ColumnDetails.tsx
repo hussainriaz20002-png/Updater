@@ -1,29 +1,57 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Alert,
-  Image,
-  ScrollView,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
-// @ts-ignore  
-import HamidMirImage from "../assets/images/HamidMir.png";
+import CommentSection from "../components/CommentSection";
+import DefaultAvatar from "../components/DefaultAvatar";
+import { db } from "../config/firebase";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { toggleLike } from "../utils/columnUtils";
 
-import { useLocalSearchParams, useRouter } from "expo-router";
+// Calculate reading time
+const calculateReadingTime = (text: string) => {
+  if (!text) return "1 min read";
+  const wordsPerMinute = 200;
+  const words = text.split(/\s+/).length;
+  const minutes = Math.ceil(words / wordsPerMinute);
+  return `${minutes} min read`;
+};
 
 export default function ArticleDetail() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { userData } = useAuth();
   const params = useLocalSearchParams();
 
+  // Likes and comments state
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [showComments, setShowComments] = useState(false);
+
+  // Constants
+  // Parsing param safely
   let article: any = params.article;
-  if (typeof article === 'string') {
+  if (typeof article === "string") {
     try {
       article = JSON.parse(article);
     } catch (e) {
@@ -32,131 +60,395 @@ export default function ArticleDetail() {
     }
   }
 
-  const handleDelete = async () => {
-    Alert.alert(
-      "Delete Column",
-      "Are you sure you want to delete this column? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const storedArticles = await AsyncStorage.getItem("articles");
-              if (storedArticles) {
-                let articles = JSON.parse(storedArticles);
-                // Filter out the article. Attempting to match by ID if available, otherwise strict equality or title/content
-                // Assuming article object structure is unique enough. 
-                // Best practice: use a unique ID. Fallback to title + date match.
+  // Animations
+  const contentAnim = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-                const newArticles = articles.filter((a: any) => {
-                  if (article.id && a.id) return a.id !== article.id;
-                  // Fallback comparison
-                  return a.title !== article.title || a.column !== article.column;
-                });
+  // Header Animation Interpolations
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 50],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
 
-                await AsyncStorage.setItem("articles", JSON.stringify(newArticles));
-                router.back();
-              }
-            } catch (error) {
-              console.error("Error deleting article:", error);
-              Alert.alert("Error", "Failed to delete the column.");
+  const titleScale = contentAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.9, 1],
+  });
+
+  const contentTranslateY = contentAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [40, 0],
+  });
+
+  useEffect(() => {
+    // Advanced Entry Animation
+    Animated.timing(contentAnim, {
+      toValue: 1,
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Real-time Listeners for Likes
+  useEffect(() => {
+    if (!article.id) return;
+    const userId = userData?.uid || userData?.email || "guest"; // using UID mostly
+
+    // Listen to the specific article document for likes updates
+    const articleRef = doc(db, "articles", article.id);
+    const unsubscribe = onSnapshot(articleRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const likes = data.likes || [];
+        setLikeCount(likes.length);
+        setLiked(likes.includes(userId));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [article.id, userData]);
+
+  // Fetch dynamic author image
+  // Optimization: If current user is the author, use their data immediately to prevent flash
+  const isSelf =
+    userData &&
+    (userData.uid === article.authorId || userData.name === article.author);
+
+  const initialImage =
+    isSelf && userData?.photoURL ? userData.photoURL : article.authorImage;
+
+  const [authorImage, setAuthorImage] = useState(initialImage);
+  useEffect(() => {
+    const fetchAuthor = async () => {
+      try {
+        // 1. Try with authorId (New Articles)
+        if (article.authorId) {
+          const userDoc = await getDoc(doc(db, "users", article.authorId));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.photoURL) {
+              setAuthorImage(data.photoURL);
             }
-          },
-        },
-      ]
-    );
+          }
+        }
+        // 2. Fallback: Try with Author Name (Old Articles)
+        else if (article.author) {
+          // Optimization: If current user is the author, use their data immediately
+          if (
+            userData &&
+            userData.name === article.author &&
+            userData.photoURL
+          ) {
+            setAuthorImage(userData.photoURL);
+            return;
+          }
+
+          // Otherwise query by name
+          const q = query(
+            collection(db, "users"),
+            where("name", "==", article.author),
+            limit(1),
+          );
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            const data = snapshot.docs[0].data();
+            if (data.photoURL) {
+              setAuthorImage(data.photoURL);
+            }
+          }
+        }
+      } catch (e) {
+        console.log("Error fetching author details", e);
+      }
+    };
+
+    fetchAuthor();
+  }, [article.authorId, article.author, userData]);
+
+  const handleLikeToggle = async () => {
+    const userId = userData?.uid || userData?.email || "guest";
+    // Optimistic Update (Visual) - disabled because we have realtime listener which is fast enough
+    // But for instant feedback we can toggle local state, though listener will correct it.
+
+    // Just call the util
+    try {
+      await toggleLike(article.id, userId);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Read "${article.title}" by ${article.author}. \n\nCheck it out!`,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const readingTime = calculateReadingTime(article.column || "");
+
+  const isUrdu = article.language === "urdu";
+  const textAlign = isUrdu ? "right" : "left";
+
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      {/* Header */}
-      <View style={styles.headerRow}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Dynamic Header */}
+      <View style={styles.headerContainer}>
         <TouchableOpacity
           onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={moderateScale(24)}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Read Column
-        </Text>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={handleDelete}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name="trash-outline"
-            size={moderateScale(24)}
-            color={isDark ? "#ff6b6b" : "#ff4444"}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View
           style={[
-            styles.card,
+            styles.backBtn,
             {
-              backgroundColor: colors.card,
-              borderColor: isDark ? "#333" : "#eee",
-              shadowColor: colors.primary,
-              shadowOpacity: isDark ? 0.3 : 0.1,
+              backgroundColor: isDark
+                ? "rgba(0,0,0,0.3)"
+                : "rgba(255,255,255,0.8)",
             },
           ]}
         >
-          {/* Title */}
-          <Text style={[styles.title, { color: colors.text }]}>
-            {article.title}
-          </Text>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
 
-          {/* Author Info */}
-          <View style={styles.authorRow}>
-            <Image source={HamidMirImage} style={styles.authorImage} />
-            <View style={{ marginLeft: scale(10) }}>
-              <Text style={[styles.authorName, { color: colors.text }]}>
-                {article.author}
+        <Animated.View
+          style={{ opacity: headerOpacity, flex: 1, alignItems: "center" }}
+        >
+          <Text
+            style={[styles.miniHeaderTitle, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {article.author}
+          </Text>
+        </Animated.View>
+
+        <View style={styles.headerRight} />
+      </View>
+
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* 1. Author Info Section */}
+        <Animated.View
+          style={[
+            styles.authorSection,
+            {
+              opacity: contentAnim,
+              transform: [{ translateY: contentTranslateY }],
+              flexDirection: isUrdu ? "row-reverse" : "row", // Reverse for Urdu
+            },
+          ]}
+        >
+          <DefaultAvatar
+            name={article.author}
+            size={moderateScale(56)}
+            source={authorImage}
+          />
+          <View
+            style={[
+              styles.authorTextContainer,
+              {
+                marginRight: isUrdu ? scale(16) : 0,
+                marginLeft: isUrdu ? 0 : scale(16),
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.authorName,
+                { color: colors.text, textAlign: textAlign },
+              ]}
+            >
+              {article.author}
+            </Text>
+            <View
+              style={[
+                styles.metaRow,
+                { flexDirection: isUrdu ? "row-reverse" : "row" },
+              ]}
+            >
+              <Text style={[styles.dateText, { color: colors.secondaryText }]}>
+                {article.date || "Recent"}
               </Text>
-              <Text style={[styles.dateText, { color: colors.secondaryText || colors.text }]}>
-                {article.date && article.date.trim() !== ""
-                  ? article.date
-                  : new Date().toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  })}
+              <View
+                style={[styles.dot, { backgroundColor: colors.secondaryText }]}
+              />
+              <Text style={[styles.dateText, { color: colors.primary }]}>
+                {readingTime}
               </Text>
             </View>
           </View>
+        </Animated.View>
 
-          {/* Article Content */}
-          <Text
+        {/* 2. Title Section */}
+        <Animated.Text
+          style={[
+            styles.articleTitle,
+            {
+              color: colors.text,
+              opacity: contentAnim,
+              transform: [{ scale: titleScale }],
+              textAlign: textAlign,
+            },
+          ]}
+        >
+          {article.title}
+        </Animated.Text>
+
+        {/* Divider */}
+        <View
+          style={[
+            styles.divider,
+            {
+              backgroundColor: isDark ? "#333" : "#eee",
+              marginVertical: verticalScale(20),
+              alignSelf: isUrdu ? "flex-end" : "flex-start", // Align divider too
+            },
+          ]}
+        />
+
+        {/* 3. Content Section */}
+        <Animated.Text
+          style={[
+            styles.articleContent,
+            {
+              color: colors.text,
+              lineHeight: moderateScale(30),
+              opacity: contentAnim,
+              transform: [{ translateY: contentTranslateY }],
+              textAlign: textAlign,
+            },
+          ]}
+        >
+          {article.column}
+        </Animated.Text>
+
+        {/* 4. Inline Interaction Bar */}
+        <Animated.View
+          style={[
+            styles.inlineActions,
+            {
+              borderTopColor: isDark ? "#333" : "#eee",
+              borderBottomColor: isDark ? "#333" : "#eee",
+              opacity: contentAnim,
+              transform: [{ translateY: contentTranslateY }], // Moves up with content
+            },
+          ]}
+        >
+          {/* Like Interaction */}
+          <View style={styles.interactionGroup}>
+            <TouchableOpacity
+              style={[
+                styles.interactionBtn,
+                liked && styles.activeInteraction,
+                { backgroundColor: isDark ? "#2A2A2A" : "#F5F7FA" },
+              ]}
+              onPress={handleLikeToggle}
+              activeOpacity={0.7}
+            >
+              <Animated.View
+                style={{ transform: [{ scale: liked ? 1.1 : 1 }] }}
+              >
+                <Ionicons
+                  name={liked ? "heart" : "heart-outline"}
+                  size={22}
+                  color={liked ? "#FF4B4B" : colors.text}
+                />
+              </Animated.View>
+              <Text
+                style={[
+                  styles.interactionText,
+                  { color: liked ? "#FF4B4B" : colors.text },
+                ]}
+              >
+                {likeCount}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Comment Interaction */}
+            <TouchableOpacity
+              style={[
+                styles.interactionBtn,
+                { backgroundColor: isDark ? "#2A2A2A" : "#F5F7FA" },
+              ]}
+              onPress={() => setShowComments(!showComments)}
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color={colors.text}
+              />
+              <Text style={[styles.interactionText, { color: colors.text }]}>
+                Comments
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Share Button */}
+          <TouchableOpacity
             style={[
-              styles.columnText,
-              { color: colors.text },
+              styles.shareBtn,
+              { backgroundColor: isDark ? "#2A2A2A" : "#F5F7FA" },
+            ]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.text} />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Spacing for bottom */}
+        <View style={{ height: verticalScale(60) }} />
+      </Animated.ScrollView>
+
+      {/* Comment Section Modal/Sheet */}
+      {showComments && (
+        <View
+          style={[
+            styles.commentsContainer,
+            {
+              backgroundColor: colors.background,
+              shadowColor: isDark ? "#fff" : "#000",
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.commentHeader,
+              { borderBottomColor: isDark ? "#333" : "#eee" },
             ]}
           >
-            {article.column}
-          </Text>
+            <Text style={[styles.commentTitle, { color: colors.text }]}>
+              Comments
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowComments(false)}
+              hitSlop={15}
+            >
+              <Ionicons
+                name="close-circle"
+                size={28}
+                color={colors.secondaryText || "#888"}
+              />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1 }}>
+            <CommentSection
+              articleId={article.id || ""}
+              userId={userData?.uid || "guest"}
+              userName={userData?.name || "Guest"}
+              articleAuthor={article.author}
+            />
+          </View>
         </View>
-      </ScrollView>
+      )}
     </View>
   );
 }
@@ -164,62 +456,141 @@ export default function ArticleDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: scale(18),
-    paddingTop: verticalScale(20),
   },
-  headerRow: {
+  headerContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: verticalScale(20),
-    marginTop: verticalScale(10),
+    paddingTop: verticalScale(40),
+    paddingHorizontal: scale(20),
+    paddingBottom: verticalScale(10),
   },
-  headerTitle: {
-    fontSize: moderateScale(22),
+  miniHeaderTitle: {
+    fontSize: moderateScale(16),
     fontWeight: "700",
-    marginLeft: scale(10),
+    opacity: 0, // Controlled by Animated.View
+  },
+  backBtn: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  headerRight: {
+    width: 40,
+    alignItems: "flex-end",
   },
   scrollContent: {
-    paddingBottom: verticalScale(40),
+    paddingHorizontal: scale(24),
+    paddingTop: verticalScale(90), // Space for absolute header
   },
-  card: {
-    borderRadius: moderateScale(16),
-    padding: moderateScale(20),
-    marginBottom: verticalScale(15),
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  title: {
-    fontSize: moderateScale(20),
-    fontWeight: "700",
-    textAlign: "right", // Urdu alignment
-    marginBottom: verticalScale(15),
-    lineHeight: moderateScale(28),
-  },
-  authorRow: {
+  authorSection: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: verticalScale(25),
+    marginBottom: verticalScale(24),
   },
-  authorImage: {
-    width: moderateScale(50),
-    height: moderateScale(50),
-    borderRadius: moderateScale(25),
+  authorTextContainer: {
+    marginLeft: scale(16),
   },
   authorName: {
-    fontSize: moderateScale(16),
-    fontWeight: "600",
+    fontSize: moderateScale(18),
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   dateText: {
     fontSize: moderateScale(13),
+    fontWeight: "600",
     opacity: 0.7,
-    marginTop: verticalScale(2),
   },
-  columnText: {
-    fontSize: moderateScale(16),
-    lineHeight: moderateScale(28),
-    textAlign: "right",
-    letterSpacing: 0.5,
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginHorizontal: 8,
+    opacity: 0.5,
+  },
+  articleTitle: {
+    fontSize: moderateScale(32),
+    fontWeight: "900", // Heavy
+    marginBottom: verticalScale(10),
+    lineHeight: moderateScale(40),
+    letterSpacing: -0.8,
+  },
+  divider: {
+    height: 1,
+    width: "15%",
+  },
+  articleContent: {
+    fontSize: moderateScale(19),
+    fontWeight: "400",
+    letterSpacing: 0.3,
+    fontFamily: "System",
+  },
+  inlineActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: verticalScale(50),
+    paddingVertical: verticalScale(24),
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  interactionGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(16),
+  },
+  interactionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: scale(20),
+    paddingVertical: verticalScale(12),
+    borderRadius: 30,
+  },
+  activeInteraction: {
+    // Optional additional styling for active state
+  },
+  interactionText: {
+    fontSize: moderateScale(15),
+    fontWeight: "700",
+  },
+  shareBtn: {
+    padding: 12,
+    borderRadius: 30,
+  },
+  commentsContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "85%", // Taller sheet for better reading
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    elevation: 80,
+    zIndex: 200,
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 30,
+    padding: scale(24),
+  },
+  commentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: verticalScale(20),
+    borderBottomWidth: 1,
+    marginBottom: verticalScale(10),
+  },
+  commentTitle: {
+    fontSize: moderateScale(22),
+    fontWeight: "800",
   },
 });

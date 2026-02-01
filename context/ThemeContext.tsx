@@ -22,7 +22,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     toggleTheme,
   };
 
-  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>
+  );
 };
 
 export const useTheme = () => useContext(ThemeContext);

@@ -1,144 +1,250 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlashList } from "@shopify/flash-list";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
-  StatusBar,
+  ActivityIndicator,
+  Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
+import { db } from "../config/firebase";
 import { useTheme } from "../context/ThemeContext";
+import useFetch from "../hooks/useFetch";
 
-export default function ReadArticles() {
-  const [articles, setArticles] = useState<any[]>([]);
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const { colors, isDark } = useTheme();
+// Calculate reading time
+const calculateReadingTime = (text: string) => {
+  const wordsPerMinute = 200;
+  const words = text.split(/\s+/).length;
+  const minutes = Math.ceil(words / wordsPerMinute);
+  return `${minutes} min read`;
+};
 
-  // params can be arrays or strings, handled securely
-  const journalistName = Array.isArray(params.journalistName) ? params.journalistName[0] : params.journalistName;
+const ColumnCard = ({ item, isDark, colors, router, index }: any) => {
+  // Animation for Fade In & Scale
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const translateY = useRef(new Animated.Value(30)).current;
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchArticles = async () => {
-        const stored = await AsyncStorage.getItem("articles");
-        if (stored) {
-          const parsed = JSON.parse(stored);
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 600,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-          //  Filter by journalist name
-          const filtered = parsed.filter(
-            (a: any) => a.author === journalistName
-          );
+  const readingTime = calculateReadingTime(item.column || "");
+  const preview = item.column.split(" ").slice(0, 35).join(" ") + "...";
 
-          // Add dummy date/time if missing
-          const withDummyDate = filtered.map((a: any) => ({
-            ...a,
-            date: a?.date && a.date.trim() !== "" ? a.date : "27 Oct 2025",
-            time: a?.time && a.time.trim() !== "" ? a.time : "10:45 AM",
-          }));
-
-          setArticles(withDummyDate);
-        } else {
-          setArticles([]);
-        }
-      };
-
-      fetchArticles();
-    }, [journalistName]));
-
-  const renderItem = ({ item }: { item: any }) => {
-    const preview = item.column.split(" ").slice(0, 20).join(" ") + "...";
-    return (
+  return (
+    <Animated.View
+      style={[
+        styles.cardContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY }, { scale: scaleAnim }],
+        },
+      ]}
+    >
       <TouchableOpacity
         style={[
           styles.card,
           {
             backgroundColor: colors.card,
-            shadowColor: colors.primary, // Premium shadow
+            shadowColor: isDark ? "#000" : "#8890a0",
+            shadowOpacity: isDark ? 0.3 : 0.15,
+            borderColor: isDark ? "#333" : "transparent",
+            borderWidth: isDark ? 1 : 0,
           },
         ]}
-        activeOpacity={0.9}
-        onPress={() => router.push({
-          pathname: "/ColumnDetails",
-          params: { article: JSON.stringify(item) }
-        })}
+        activeOpacity={0.92}
+        onPress={() =>
+          router.push({
+            pathname: "/ColumnDetails",
+            params: { article: JSON.stringify(item) },
+          })
+        }
       >
-        <Text style={[styles.title, { color: colors.text }]}>
-          {item.title}
-        </Text>
+        <View style={styles.cardInner}>
+          {/* Top Meta: Date on left, Time on right */}
+          <View style={styles.metaRow}>
+            <Text style={[styles.dateText, { color: colors.secondaryText }]}>
+              {item.date}
+            </Text>
+            <View style={styles.readingTimeBadge}>
+              <Ionicons name="time-outline" size={12} color={colors.primary} />
+              <Text style={[styles.readingTimeText, { color: colors.primary }]}>
+                {readingTime}
+              </Text>
+            </View>
+          </View>
 
-        <View style={styles.metaRow}>
-          <Ionicons name="time-outline" size={moderateScale(12)} color={colors.primary} style={{ marginRight: 4 }} />
-          <Text
+          {/* Title */}
+          <Text style={[styles.title, { color: colors.text }]}>
+            {item.title}
+          </Text>
+
+          {/* Divider */}
+          <View
             style={[
-              styles.date,
-              { color: isDark ? "#aaa" : "#666" },
+              styles.divider,
+              { backgroundColor: isDark ? "#444" : "#eee" },
             ]}
+          />
+
+          {/* Preview Text */}
+          <Text style={[styles.preview, { color: isDark ? "#aaa" : "#555" }]}>
+            {preview}
+          </Text>
+
+          {/* Read More Indicator */}
+          <View style={styles.readMoreRow}>
+            <Text style={[styles.readMoreText, { color: colors.text }]}>
+              Read Full Column
+            </Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.text} />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+export default function ReadArticles() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { colors, isDark } = useTheme();
+
+  const journalistName = Array.isArray(params.journalistName)
+    ? params.journalistName[0]
+    : params.journalistName;
+
+  // Define params as a memo to avoid infinite refetching loop in useFetch
+  const queryConstraints = useMemo(
+    () => [where("author", "==", journalistName)],
+    [journalistName],
+  );
+
+  const { data: articles, loading } = useFetch<any>(
+    "articles",
+    queryConstraints,
+    true,
+  );
+
+  // Fetch author details once for the whole list (since filtered by journalistName)
+  const [authorImage, setAuthorImage] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAuthorImage = async () => {
+      if (!journalistName) return;
+      try {
+        const q = query(
+          collection(db, "users"),
+          where("name", "==", journalistName),
+          limit(1),
+        );
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const userData = snapshot.docs[0].data();
+          if (userData.photoURL) {
+            setAuthorImage(userData.photoURL);
+          }
+        }
+      } catch (e) {
+        console.log("Error fetching author for header", e);
+      }
+    };
+    fetchAuthorImage();
+  }, [journalistName]);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Premium Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            styles.backButton,
+            { backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#f0f0f0" },
+          ]}
+          hitSlop={10}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={moderateScale(22)}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.headerContent}>
+          <Text style={[styles.headerEyebrow, { color: colors.primary }]}>
+            COLUMNIST
+          </Text>
+          <Text
+            style={[styles.headerTitle, { color: colors.text }]}
+            numberOfLines={1}
           >
-            {item.date} • {item.time}
+            {journalistName}
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.line,
-            { backgroundColor: colors.primary },
-          ]}
-        />
-        <Text style={[styles.preview, { color: isDark ? "#ccc" : "#444" }]}>
-          {preview}
-        </Text>
-
-        <View style={styles.readMoreRow}>
-          <Text style={[styles.readMore, { color: colors.primary }]}>Read Full Article</Text>
-          <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          hitSlop={10}
-        >
-          <Ionicons name="arrow-back" size={moderateScale(24)} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.heading, { color: colors.text }]} numberOfLines={1}>
-          {journalistName ? `${journalistName}'s Columns` : "Columns"}
-        </Text>
-        <View style={{ width: 24 }} />
+        {/* Placeholder for balance */}
+        <View style={{ width: 40 }} />
       </View>
 
-      {articles.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="document-text-outline" size={moderateScale(50)} color={isDark ? "#333" : "#eee"} />
-          <Text style={[styles.noArticles, { color: colors.text }]}>
-            No columns found for this journalist.
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : articles.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Ionicons
+            name="newspaper-outline"
+            size={moderateScale(64)}
+            color={isDark ? "#444" : "#ddd"}
+          />
+          <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+            No columns published yet.
           </Text>
         </View>
       ) : (
         <FlashList
           data={articles}
           keyExtractor={(item: any) => item.id || Math.random().toString()}
-          estimatedItemSize={moderateScale(150)}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: verticalScale(40) }}
+          renderItem={({ item, index }) => (
+            <ColumnCard
+              item={{ ...item, authorImage: authorImage || item.authorImage }} // Injected fresh image
+              index={index}
+              isDark={isDark}
+              colors={colors}
+              router={router}
+            />
+          )}
+          contentContainerStyle={{
+            paddingHorizontal: scale(20),
+            paddingBottom: verticalScale(50),
+          }}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -149,78 +255,119 @@ export default function ReadArticles() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: scale(16),
   },
-  headerContainer: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: verticalScale(40),
-    paddingBottom: verticalScale(15),
-    marginBottom: verticalScale(10)
+    paddingHorizontal: scale(20),
+    paddingTop: verticalScale(50),
+    paddingBottom: verticalScale(20),
+    zIndex: 10,
   },
-  backButton: { padding: 5 },
-  heading: {
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerContent: {
+    alignItems: "center",
+    flex: 1,
+  },
+  headerEyebrow: {
+    fontSize: moderateScale(10),
+    fontWeight: "800",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  headerTitle: {
     fontSize: moderateScale(20),
     fontWeight: "700",
-    maxWidth: '80%',
-    textAlign: 'center'
+    letterSpacing: 0.5,
+  },
+  cardContainer: {
+    marginBottom: verticalScale(20),
   },
   card: {
-    borderRadius: moderateScale(16),
-    padding: moderateScale(20),
-    marginBottom: verticalScale(16),
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: moderateScale(24),
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 8,
+    marginHorizontal: 2, // avoid clipping shadow
   },
-  title: {
-    fontSize: moderateScale(18),
-    fontWeight: "700",
-    marginBottom: verticalScale(8),
-    lineHeight: moderateScale(24)
+  cardInner: {
+    padding: moderateScale(24),
   },
   metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: verticalScale(12)
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: verticalScale(14),
   },
-  line: {
-    height: 1,
-    width: "15%",
+  dateText: {
+    fontSize: moderateScale(12),
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    opacity: 0.7,
+  },
+  readingTimeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.03)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  readingTimeText: {
+    fontSize: moderateScale(11),
+    fontWeight: "700",
+  },
+  title: {
+    fontSize: moderateScale(22),
+    fontWeight: "800",
     marginBottom: verticalScale(12),
-    opacity: 0.5
+    lineHeight: moderateScale(30),
+    letterSpacing: -0.5,
+  },
+  divider: {
+    height: 1,
+    width: 40,
+    marginBottom: verticalScale(12),
   },
   preview: {
-    fontSize: moderateScale(14),
-    lineHeight: moderateScale(22),
-    marginBottom: verticalScale(16)
-  },
-  date: {
-    fontSize: moderateScale(12),
-    fontWeight: '500'
+    fontSize: moderateScale(16),
+    lineHeight: moderateScale(24),
+    marginBottom: verticalScale(20),
+    fontWeight: "400",
+    letterSpacing: 0.1,
   },
   readMoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end'
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
+    opacity: 0.9,
   },
-  readMore: {
+  readMoreText: {
     fontSize: moderateScale(13),
-    fontWeight: '700',
-    marginRight: scale(4)
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
-  emptyContainer: {
+  centerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: verticalScale(100)
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: verticalScale(100),
   },
-  noArticles: {
-    textAlign: "center",
+  emptyText: {
     marginTop: verticalScale(16),
     fontSize: moderateScale(16),
-    opacity: 0.6
+    fontWeight: "500",
   },
 });
