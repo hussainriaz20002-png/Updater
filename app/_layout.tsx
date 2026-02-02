@@ -1,7 +1,7 @@
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { Stack, useRouter, useSegments } from "expo-router"; // Added hooks
 import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { Image, View } from "react-native";
 import "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ChatProvider } from "../context/ChatContext";
@@ -71,7 +71,11 @@ function AuthenticatedStack() {
             zIndex: 9999,
           }}
         >
-          <ActivityIndicator size="large" color="#0000ff" />
+          <Image
+            source={require("../assets/images/Updater-Logo.png")}
+            style={{ width: 120, height: 120 }}
+            resizeMode="contain"
+          />
         </View>
       )}
     </View>
