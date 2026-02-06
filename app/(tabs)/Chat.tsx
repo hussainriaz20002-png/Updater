@@ -17,7 +17,7 @@ import TypingIndicator from "../../components/TypingIndicator";
 import { useChat } from "../../context/ChatContext";
 import { useTheme } from "../../context/ThemeContext";
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_KEY = "AIzaSyDEEjzQRbthyQzdD5CIY6lUWMFWIKa10io";
 
 const ChatScreen = () => {
   const router = useRouter();
