@@ -17,12 +17,15 @@ export interface Comment {
   id: string;
   userId: string;
   userName: string;
+  userImage?: string | null; // Allow null for Firestore compatibility
   text: string;
   timestamp: number;
   date: string;
 }
 
-// Format relative time (unchanged)
+// ... existing code ...
+
+// Format relative time
 export const formatRelativeTime = (timestamp: number): string => {
   const now = Date.now();
   const diff = now - timestamp;
@@ -101,6 +104,7 @@ export const addComment = async (
   articleId: string,
   userId: string,
   userName: string,
+  userImage: string | null | undefined, // Added userImage param
   text: string,
 ): Promise<Comment> => {
   try {
@@ -108,6 +112,7 @@ export const addComment = async (
     const newComment = {
       userId,
       userName,
+      userImage: userImage || null, // Ensure field exists as null if empty
       text,
       timestamp: Date.now(),
       date: new Date().toLocaleDateString("en-GB"),

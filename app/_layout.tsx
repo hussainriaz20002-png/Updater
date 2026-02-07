@@ -1,83 +1,54 @@
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
-import { Stack, useRouter, useSegments } from "expo-router"; // Added hooks
-import { useEffect } from "react";
-import { Image, View } from "react-native";
+import { Stack } from "expo-router"; // Added hooks
+import { View } from "react-native";
 import "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ChatProvider } from "../context/ChatContext";
 import { ReelProvider } from "../context/ReelContext";
 import { SavedArticlesProvider } from "../context/SavedArticlesContext";
 
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+
+SplashScreen.preventAutoHideAsync();
+
 function AuthenticatedStack() {
   const { user, loading } = useAuth();
-  const segments = useSegments() as string[];
-  const router = useRouter();
-  const { colors, isDark } = useTheme();
-
-  const inAuthGroup =
-    segments.length === 0 || // index
-    segments[0] === "Login" ||
-    segments[0] === "SignUpScreen" ||
-    segments[0] === "SignUpJournalist" ||
-    segments[0] === "SignUpUser";
+  const { colors } = useTheme();
 
   useEffect(() => {
-    if (loading) return;
-
-    if (user && inAuthGroup) {
-      router.replace("/(tabs)/Home");
+    if (!loading) {
+      SplashScreen.hideAsync();
     }
-  }, [user, loading, segments, inAuthGroup]);
+  }, [loading]);
 
-  // Only show loading indicator for initial auth check
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack
         screenOptions={{ headerShown: false, animation: "slide_from_right" }}
       >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="Login" />
-        <Stack.Screen name="SignUpScreen" />
-        <Stack.Screen name="SignUpJournalist" />
-        <Stack.Screen name="SignUpUser" />
-        <Stack.Screen name="ForgotPassword" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="DeepDive" />
+        <Stack.Protected guard={!user}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="Login" />
+          <Stack.Screen name="SignUpScreen" />
+          <Stack.Screen name="SignUpJournalist" />
+          <Stack.Screen name="SignUpUser" />
+          <Stack.Screen name="ForgotPassword" />
+        </Stack.Protected>
 
-        <Stack.Screen name="UploadColumns" />
-        <Stack.Screen name="EditProfile" />
-        <Stack.Screen name="ProfileSetting" />
-        <Stack.Screen name="SavedArticles" />
-        <Stack.Screen name="ReadColumns" />
-        <Stack.Screen name="ColumnDetails" />
-        <Stack.Screen name="YourColumns" />
+        <Stack.Protected guard={!!user}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="DeepDive" />
+          <Stack.Screen name="UploadColumns" />
+          <Stack.Screen name="EditProfile" />
+          <Stack.Screen name="ProfileSetting" />
+          <Stack.Screen name="SavedArticles" />
+          <Stack.Screen name="ReadColumns" />
+          <Stack.Screen name="ColumnDetails" />
+          <Stack.Screen name="YourColumns" />
+          <Stack.Screen name="StockMarket" />
+        </Stack.Protected>
       </Stack>
-
-      {/* Loading Overlay: 
-          Keeps Stack mounted (preventing router errors) while blocking 
-          interaction/vision during initial auth or redirect. 
-      */}
-      {(loading || (user && inAuthGroup)) && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: colors.background,
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 9999,
-          }}
-        >
-          <Image
-            source={require("../assets/images/Updater-Logo.png")}
-            style={{ width: 120, height: 120 }}
-            resizeMode="contain"
-          />
-        </View>
-      )}
     </View>
   );
 }

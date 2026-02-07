@@ -444,6 +444,7 @@ export default function ArticleDetail() {
               articleId={article.id || ""}
               userId={userData?.uid || "guest"}
               userName={userData?.name || "Guest"}
+              userImage={userData?.photoURL} // Pass user image
               articleAuthor={article.author}
             />
           </View>

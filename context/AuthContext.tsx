@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -8,7 +9,7 @@ import {
   User,
   UserCredential,
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
 
@@ -19,6 +20,7 @@ interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   error: string | null;
   resetError: () => void;
   refreshUserData: () => Promise<void>;
@@ -51,6 +53,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return "Password should be at least 6 characters.";
       case "auth/invalid-credential":
         return "Invalid credentials provided.";
+      case "auth/requires-recent-login":
+        return "Please log in again to delete your account.";
       default:
         return "An authentication error occurred. Please try again.";
     }
@@ -150,6 +154,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    setError(null);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("No user logged in");
+
+      // 1. Delete Firestore User Document
+      await deleteDoc(doc(db, "users", currentUser.uid));
+
+      // 2. Delete Authentication User
+      await deleteUser(currentUser);
+
+      // 3. Clear Local Storage (reuse logout cleanup logic essentially)
+      await AsyncStorage.removeItem("userRole");
+      await AsyncStorage.removeItem("user_name");
+      await AsyncStorage.removeItem("user_bio");
+      await AsyncStorage.removeItem("user_image");
+      setUserData(null);
+    } catch (err: any) {
+      const friendlyMsg = mapAuthError(err);
+      setError(friendlyMsg);
+      throw new Error(friendlyMsg);
+    }
+  };
+
   const refreshUserData = async () => {
     if (user) {
       await fetchUserData(user.uid);
@@ -171,6 +200,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         resetError,
         refreshUserData,
         resetPassword,
+        deleteAccount,
       }}
     >
       {children}

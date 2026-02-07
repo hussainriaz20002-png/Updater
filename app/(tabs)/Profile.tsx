@@ -4,6 +4,7 @@ import Slider from "@react-native-community/slider";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   BackHandler,
   ScrollView,
@@ -22,7 +23,7 @@ import { useTheme } from "../../context/ThemeContext";
 const ProfileScreen = () => {
   const router = useRouter();
   const { isDark, colors, toggleTheme } = useTheme();
-  const { userData, logout } = useAuth();
+  const { userData, logout, deleteAccount } = useAuth();
   const insets = useSafeAreaInsets();
 
   // Profile State - Derived directly from userData now
@@ -33,6 +34,7 @@ const ProfileScreen = () => {
   // Settings State
   const [dailyLimitEnabled, setDailyLimitEnabled] = useState(false);
   const [dailyLimit, setDailyLimit] = useState(30);
+  const [isDeleting, setIsDeleting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load Settings
@@ -121,6 +123,32 @@ const ProfileScreen = () => {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await deleteAccount();
+              // Router replace happens in AuthContext or we do it here.
+              // If AuthContext doesn't redirect, we do:
+              router.replace("/");
+            } catch (error: any) {
+              Alert.alert("Error", error.message);
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const SettingItem = ({
     icon,
     label,
@@ -129,6 +157,7 @@ const ProfileScreen = () => {
     onPress,
     rightElement,
     destructive = false,
+    loading = false,
   }: any) => (
     <TouchableOpacity
       style={[
@@ -139,7 +168,7 @@ const ProfileScreen = () => {
         },
       ]}
       onPress={onPress}
-      disabled={!onPress}
+      disabled={!onPress || loading}
       activeOpacity={0.7}
     >
       <View style={styles.settingLeft}>
@@ -187,6 +216,13 @@ const ProfileScreen = () => {
             color={colors.secondaryText || "#999"}
           />
         ))}
+      {loading && (
+        <ActivityIndicator
+          size="small"
+          color={destructive ? "#FF3B30" : colors.primary}
+          style={{ marginLeft: 10 }}
+        />
+      )}
     </TouchableOpacity>
   );
 
@@ -299,6 +335,13 @@ const ProfileScreen = () => {
           label="Log Out"
           onPress={handleLogout}
           destructive
+        />
+        <SettingItem
+          icon="trash-outline"
+          label="Delete Account"
+          onPress={handleDeleteAccount}
+          destructive
+          loading={isDeleting}
         />
 
         <View style={{ height: verticalScale(40) }} />

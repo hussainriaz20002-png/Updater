@@ -1,3 +1,4 @@
+import { db } from "@/config/firebase";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
@@ -13,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
-import { db } from "../config/firebase";
 import { useTheme } from "../context/ThemeContext";
 import {
   addComment,
@@ -27,6 +27,7 @@ interface CommentSectionProps {
   articleId: string;
   userId: string;
   userName: string;
+  userImage?: string; // Accept userImage
   articleAuthor: string;
 }
 
@@ -34,6 +35,7 @@ export default function CommentSection({
   articleId,
   userId,
   userName,
+  userImage,
   articleAuthor,
 }: CommentSectionProps) {
   const { colors, isDark } = useTheme();
@@ -44,19 +46,30 @@ export default function CommentSection({
 
   // Real-time listener for comments
   useEffect(() => {
-    if (!articleId) return;
+    if (!articleId) {
+      setLoadingComments(false);
+      return;
+    }
 
     const commentsRef = collection(db, "articles", articleId, "comments");
+    // Sort by timestamp descending (newest first)
     const q = query(commentsRef, orderBy("timestamp", "desc"));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedComments = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Comment[];
-      setComments(fetchedComments);
-      setLoadingComments(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fetchedComments = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Comment[];
+        setComments(fetchedComments);
+        setLoadingComments(false);
+      },
+      (error) => {
+        console.error("Error fetching comments:", error);
+        setLoadingComments(false); // Stop loading on error
+      },
+    );
 
     return () => unsubscribe();
   }, [articleId]);
@@ -66,7 +79,13 @@ export default function CommentSection({
 
     setIsSubmitting(true);
     try {
-      await addComment(articleId, userId, userName, commentText);
+      await addComment(
+        articleId,
+        userId,
+        userName,
+        userImage || null,
+        commentText,
+      );
       setCommentText("");
       Keyboard.dismiss();
     } catch (error) {
@@ -102,7 +121,11 @@ export default function CommentSection({
 
     return (
       <View style={styles.commentRow}>
-        <DefaultAvatar name={item.userName} size={moderateScale(32)} />
+        <DefaultAvatar
+          name={item.userName}
+          size={moderateScale(32)}
+          source={item.userImage} // Use stored image
+        />
         <View style={styles.commentContent}>
           <View
             style={[

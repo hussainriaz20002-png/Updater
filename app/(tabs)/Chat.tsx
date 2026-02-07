@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -17,7 +18,7 @@ import TypingIndicator from "../../components/TypingIndicator";
 import { useChat } from "../../context/ChatContext";
 import { useTheme } from "../../context/ThemeContext";
 
-const GEMINI_API_KEY = "AIzaSyDEEjzQRbthyQzdD5CIY6lUWMFWIKa10io";
+const GEMINI_API_KEY = process.env.GEMINI_KEY;
 
 const ChatScreen = () => {
   const router = useRouter();
@@ -185,64 +186,117 @@ const ChatScreen = () => {
           ListFooterComponent={loading ? <TypingIndicator /> : null}
           ListEmptyComponent={
             <View style={styles.suggestionsContainer}>
+              {/* Premium Welcome Section */}
               <View style={styles.welcomeSection}>
-                <Ionicons
-                  name="sparkles"
-                  size={moderateScale(40)}
-                  color={colors.primary}
-                />
+                <LinearGradient
+                  colors={[colors.primary, "#6366f1"]} // Gradient Icon Background
+                  style={{
+                    width: moderateScale(60),
+                    height: moderateScale(60),
+                    borderRadius: moderateScale(30),
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: verticalScale(16),
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 6,
+                  }}
+                >
+                  <Ionicons
+                    name="sparkles"
+                    size={moderateScale(32)}
+                    color="#fff"
+                  />
+                </LinearGradient>
                 <Text style={[styles.welcomeTitle, { color: colors.text }]}>
-                  How can I help you today?
+                  Hello, I'm Gemini.
                 </Text>
                 <Text
                   style={[
                     styles.welcomeSubtitle,
-                    { color: isDark ? "#888" : "#666" },
+                    { color: isDark ? "#aaa" : "#666" },
                   ]}
                 >
-                  Ask me anything about news and current events
+                  How can I help you today?
                 </Text>
               </View>
+
+              {/* Premium Suggestions Grid */}
               <View style={styles.suggestionsGrid}>
                 {[
                   {
-                    icon: "newspaper-outline",
-                    text: "Summarize today's top headlines",
+                    icon: "newspaper",
+                    title: "Market News",
+                    text: "Summarize today's top finance headlines",
+                    color: ["#3b82f6", "#2563eb"], // Blue
                   },
                   {
-                    icon: "globe-outline",
+                    icon: "earth",
+                    title: "Global Events",
                     text: "What's happening in world politics?",
+                    color: ["#10b981", "#059669"], // Green
                   },
                   {
-                    icon: "trending-up-outline",
-                    text: "Explain the latest market trends",
+                    icon: "trending-up",
+                    title: "Analysis",
+                    text: "Explain the latest tech market trends",
+                    color: ["#f59e0b", "#d97706"], // Amber
                   },
-                  { icon: "bulb-outline", text: "Give me a tech news update" },
+                  {
+                    icon: "code-slash",
+                    title: "Tech Update",
+                    text: "What are the latest breakthroughs in AI?",
+                    color: ["#8b5cf6", "#7c3aed"], // Violet
+                  },
                 ].map((suggestion, index) => (
                   <TouchableOpacity
                     key={index}
+                    activeOpacity={0.9}
+                    onPress={() => setInputText(suggestion.text)}
                     style={[
                       styles.suggestionCard,
                       {
-                        backgroundColor: isDark ? "#1E1E1E" : "#f8f9fa",
-                        borderColor: isDark ? "#333" : "#e0e0e0",
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderColor: isDark ? "#374151" : "#e5e7eb",
                       },
                     ]}
-                    onPress={() => setInputText(suggestion.text)}
-                    activeOpacity={0.7}
                   >
-                    <Ionicons
-                      name={suggestion.icon as any}
-                      size={moderateScale(20)}
-                      color={colors.primary}
-                      style={{ marginBottom: verticalScale(8) }}
-                    />
-                    <Text
-                      style={[styles.suggestionText, { color: colors.text }]}
-                      numberOfLines={2}
-                    >
-                      {suggestion.text}
-                    </Text>
+                    {/* Icon Header */}
+                    <View style={styles.cardHeader}>
+                      <LinearGradient
+                        colors={suggestion.color as any}
+                        style={styles.iconBadge}
+                      >
+                        <Ionicons
+                          name={suggestion.icon as any}
+                          size={16}
+                          color="#fff"
+                        />
+                      </LinearGradient>
+                      <Ionicons
+                        name="arrow-forward"
+                        size={16}
+                        color={isDark ? "#6b7280" : "#9ca3af"}
+                      />
+                    </View>
+
+                    {/* Text Content */}
+                    <View style={styles.cardContent}>
+                      <Text style={[styles.cardTitle, { color: colors.text }]}>
+                        {suggestion.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.cardDescription,
+                          { color: isDark ? "#9ca3af" : "#6b7280" },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {suggestion.text}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -389,38 +443,69 @@ const styles = StyleSheet.create({
   },
   welcomeSection: {
     alignItems: "center",
-    marginBottom: verticalScale(24),
+    marginBottom: verticalScale(32),
+    marginTop: verticalScale(20),
   },
   welcomeTitle: {
-    fontSize: moderateScale(22),
-    fontWeight: "700",
-    marginTop: verticalScale(12),
+    fontSize: moderateScale(24),
+    fontWeight: "800",
+    marginTop: verticalScale(4),
     textAlign: "center",
-    marginBottom: verticalScale(8),
+    letterSpacing: 0.5,
   },
   welcomeSubtitle: {
-    fontSize: moderateScale(14),
-    marginTop: verticalScale(6),
+    fontSize: moderateScale(15),
+    marginTop: verticalScale(8),
     textAlign: "center",
+    maxWidth: "80%",
+    fontWeight: "400",
   },
   suggestionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "center",
-    gap: scale(10),
+    justifyContent: "space-between",
+    gap: scale(10), // Reduced gap slightly
+    width: "100%",
   },
   suggestionCard: {
-    width: "47%",
-    padding: moderateScale(14),
-    borderRadius: moderateScale(14),
+    width: "47%", // Reduced width slightly to ensure 2 items fit per row
+    padding: moderateScale(16),
+    borderRadius: moderateScale(20),
     borderWidth: 1,
-    alignItems: "flex-start",
-    minHeight: verticalScale(80),
+    minHeight: verticalScale(140),
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: verticalScale(10), // Add explicit margin bottom for rows
   },
-  suggestionText: {
-    fontSize: moderateScale(13),
-    fontWeight: "500",
-    lineHeight: moderateScale(18),
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: verticalScale(12),
+  },
+  iconBadge: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(10),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  cardTitle: {
+    fontSize: moderateScale(14),
+    fontWeight: "700",
+    marginBottom: verticalScale(4),
+  },
+  cardDescription: {
+    fontSize: moderateScale(12),
+    lineHeight: moderateScale(16),
   },
 });
 

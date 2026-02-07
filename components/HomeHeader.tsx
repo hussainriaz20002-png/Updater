@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -32,6 +33,19 @@ const HomeHeader = () => {
 
       <View style={styles.actionsContainer}>
         {/* Chat button removed from here as it is now a tab */}
+
+        {/* Stock Market Icon */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => router.push("/StockMarket")}
+          style={[styles.iconButton]}
+        >
+          <Ionicons
+            name="trending-up"
+            size={moderateScale(24)}
+            color={colors.text}
+          />
+        </TouchableOpacity>
 
         {!user && (
           <TouchableOpacity

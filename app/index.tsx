@@ -1,108 +1,148 @@
-import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React from "react";
-import {
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
-// @ts-ignore
-import getStartedImage from "../assets/images/getStarted.png";
 
-const GetStarted = () => {
+const Index = () => {
+  const router = useRouter();
+
   return (
-    <ImageBackground
-      source={getStartedImage}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      {/* Overlay Gradient Effect (Simulated with background color) */}
-      <View style={styles.overlay}>
-        <View style={styles.contentContainer}>
-          <Text style={styles.brandTitle}>Updater</Text>
-          <Text style={styles.brandSubtitle}>Stay informed. Stay ahead.</Text>
+    <View style={styles.container}>
+      <LinearGradient
+        // Deep elegant gradient: "Midnight City"
+        colors={["#0f172a", "#1e3a8a", "#172554"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.background}
+      >
+        {/* Abstract Geometric Decoration (Optional for depth) */}
+        <View style={styles.decorationCircle} />
 
-          <View style={styles.bottomSection}>
+        <View style={styles.contentContainer}>
+          {/* Animated Header Section */}
+          <View style={styles.headerSection}>
+            <Animated.Text
+              entering={FadeInDown.delay(200).duration(1000).springify()}
+              style={styles.brandTitle}
+            >
+              UPDATER
+            </Animated.Text>
+
+            <Animated.View
+              entering={FadeInDown.delay(600).duration(1000)}
+              style={styles.divider}
+            />
+          </View>
+
+          {/* Animated Button Section */}
+          <Animated.View
+            entering={FadeInUp.delay(1000).duration(800).springify()}
+            style={styles.bottomSection}
+          >
             <TouchableOpacity
               style={styles.button}
               activeOpacity={0.8}
               onPress={() => router.push("/Login")}
             >
-              <Text style={styles.buttonText}>Get Started</Text>
+              <LinearGradient
+                colors={["#3b82f6", "#2563eb"]} // Vibrant Blue Button
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Get Started</Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
-      </View>
-    </ImageBackground>
+      </LinearGradient>
+    </View>
   );
 };
 
-export default GetStarted;
+export default Index;
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  container: {
+    flex: 1,
+  },
+  background: {
     flex: 1,
     width: "100%",
-    height: "100%",
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)", // Adds dimming for better text readability
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
   contentContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: scale(20),
+    paddingHorizontal: scale(30),
+    justifyContent: "space-between",
+    paddingVertical: verticalScale(80),
+  },
+  // Decoration
+  decorationCircle: {
+    position: "absolute",
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "rgba(59, 130, 246, 0.1)", // Faint blue glow
+  },
+
+  headerSection: {
+    marginTop: verticalScale(60),
+    alignItems: "center", // Centered
+    width: "100%",
   },
   brandTitle: {
-    color: "white",
-    fontSize: moderateScale(48),
-    textAlign: "center",
-    marginTop: verticalScale(150),
-    fontFamily: "Itim", // Keeping the requested font
-    letterSpacing: 1,
-    textShadowColor: "rgba(0, 0, 0, 0.75)",
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10,
+    fontSize: moderateScale(52),
+    color: "#ffffff",
+    fontWeight: "800",
+    letterSpacing: 2,
+    marginBottom: verticalScale(10),
   },
-  brandSubtitle: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: moderateScale(16),
-    textAlign: "center",
+  divider: {
+    height: 4,
+    width: 280, // Stretched to match text width approximately
+    backgroundColor: "#3b82f6", // Blue accent
+    borderRadius: 2,
     marginTop: verticalScale(10),
-    letterSpacing: 0.5,
-    fontWeight: "500",
+    marginBottom: verticalScale(20),
   },
+
   bottomSection: {
-    flex: 1,
-    justifyContent: "flex-end",
-    marginBottom: verticalScale(60),
-    width: "100%",
     alignItems: "center",
+    width: "100%",
+    marginBottom: verticalScale(20),
   },
   button: {
-    backgroundColor: "#3A7BD5",
-    paddingVertical: verticalScale(16),
-    borderRadius: moderateScale(30),
-    width: "85%",
-    alignItems: "center",
-    shadowColor: "#3A7BD5",
+    width: "100%",
+    borderRadius: moderateScale(16),
+    overflow: "hidden", // For gradient
+    shadowColor: "#3b82f6",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 10,
     },
-    shadowOpacity: 0.44,
-    shadowRadius: 10.32,
-    elevation: 16,
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  buttonGradient: {
+    paddingVertical: verticalScale(18),
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
     color: "white",
     fontSize: moderateScale(18),
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  loginLink: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: moderateScale(14),
+    fontWeight: "500",
   },
 });
